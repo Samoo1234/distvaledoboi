@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -13,67 +13,120 @@ import {
   TableHead, 
   TableRow,
   Paper,
-  Chip
+  Chip,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton
 } from '@mui/material';
 import {
   Print as PrintIcon,
   Visibility as VisibilityIcon,
   Cancel as CancelIcon,
   CheckCircle as CheckCircleIcon,
-  AccessTime as AccessTimeIcon
+  AccessTime as AccessTimeIcon,
+  PlayArrow as PlayArrowIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
+import { OrderService, Order, OrderStats } from '../../../services/orders';
+import { useNotification } from '../../shared/Notification';
 
 /**
  * Dashboard para equipe de separação
  */
 const SeparacaoDashboard: React.FC = () => {
-  // Dados simulados para demonstração
-  const pendingCount = 8;
-  const processingCount = 3;
-  const completedCount = 5;
-  
-  const mockOrders = [
-    { 
-      id: '001', 
-      cliente: 'Açougue A', 
-      vendedor: 'João', 
-      items: 5, 
-      status: 'processing',
-      created: '10/07/2025 09:15'
-    },
-    { 
-      id: '002', 
-      cliente: 'Mercado B', 
-      vendedor: 'Maria', 
-      items: 3, 
-      status: 'pending',
-      created: '10/07/2025 10:20'
-    },
-    { 
-      id: '003', 
-      cliente: 'Padaria C', 
-      vendedor: 'João', 
-      items: 7, 
-      status: 'completed',
-      created: '10/07/2025 08:30'
-    },
-    { 
-      id: '004', 
-      cliente: 'Restaurante D', 
-      vendedor: 'Ana', 
-      items: 10, 
-      status: 'pending',
-      created: '10/07/2025 11:05'
-    },
-    { 
-      id: '005', 
-      cliente: 'Supermercado E', 
-      vendedor: 'Carlos', 
-      items: 8, 
-      status: 'pending',
-      created: '10/07/2025 09:45'
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState<OrderStats>({
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    cancelled: 0,
+    total: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  const { showNotification } = useNotification();
+
+  // Carregar dados ao montar o componente
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Carregar pedidos e estatísticas em paralelo
+      const [ordersData, statsData] = await Promise.all([
+        OrderService.getOrdersForSeparation(),
+        OrderService.getOrderStats()
+      ]);
+
+      setOrders(ordersData);
+      setStats(statsData);
+    } catch (err) {
+      console.error('Erro ao carregar dados:', err);
+      setError('Erro ao carregar dados. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  const handleStartSeparation = async (orderId: string) => {
+    try {
+      setActionLoading(true);
+      await OrderService.startSeparation(orderId);
+      showNotification({ message: 'Separação iniciada com sucesso!', type: 'success' });
+      loadData(); // Recarregar dados
+    } catch (err) {
+      console.error('Erro ao iniciar separação:', err);
+      showNotification({ message: 'Erro ao iniciar separação', type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCompleteSeparation = async (orderId: string) => {
+    try {
+      setActionLoading(true);
+      await OrderService.completeSeparation(orderId);
+      showNotification({ message: 'Separação concluída com sucesso!', type: 'success' });
+      loadData(); // Recarregar dados
+    } catch (err) {
+      console.error('Erro ao concluir separação:', err);
+      showNotification({ message: 'Erro ao concluir separação', type: 'error' });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleViewOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedOrder(null);
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('pt-BR');
+  };
 
   // Função auxiliar para renderizar o status dos pedidos
   const renderStatus = (status: string) => {
@@ -102,6 +155,14 @@ const SeparacaoDashboard: React.FC = () => {
           size="small"
           variant="outlined" 
         />;
+      case 'cancelled':
+        return <Chip 
+          icon={<CancelIcon />} 
+          label="Cancelado" 
+          color="error" 
+          size="small"
+          variant="outlined" 
+        />;
       default:
         return <Chip 
           label="Desconhecido" 
@@ -110,36 +171,56 @@ const SeparacaoDashboard: React.FC = () => {
     }
   };
 
-  return (
-    <Box>
-      {/* Título da página */}
-      <Typography 
-        variant="h4" 
-        component="h1" 
-        gutterBottom
-        sx={{ 
-          fontWeight: 'bold', 
-          color: '#333',
-          mb: 3
-        }}
-      >
-        Dashboard de Separação
-      </Typography>
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-      {/* Cards com estatísticas */}
+  if (error) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={loadData}
+          startIcon={<RefreshIcon />}
+        >
+          Tentar Novamente
+        </Button>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+          Dashboard de Separação
+        </Typography>
+        <Button 
+          variant="outlined" 
+          onClick={loadData}
+          startIcon={<RefreshIcon />}
+        >
+          Atualizar
+        </Button>
+      </Box>
+
+      {/* Cards de Estatísticas */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            boxShadow: 2,
-            height: '100%',
-            borderLeft: '4px solid #FFA000'
-          }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'warning.main' }}>
             <CardContent>
-              <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>
+              <Typography color="text.secondary" gutterBottom>
                 Pedidos Pendentes
               </Typography>
-              <Typography variant="h3" component="div" sx={{ fontWeight: 'bold' }}>
-                {pendingCount}
+              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                {stats.pending}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Aguardando separação
@@ -147,18 +228,14 @@ const SeparacaoDashboard: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            boxShadow: 2,
-            height: '100%',
-            borderLeft: '4px solid #2196F3'
-          }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'info.main' }}>
             <CardContent>
-              <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>
+              <Typography color="text.secondary" gutterBottom>
                 Em Separação
               </Typography>
-              <Typography variant="h3" component="div" sx={{ fontWeight: 'bold' }}>
-                {processingCount}
+              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                {stats.processing}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Em processamento
@@ -166,18 +243,14 @@ const SeparacaoDashboard: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} md={4}>
-          <Card sx={{ 
-            boxShadow: 2,
-            height: '100%',
-            borderLeft: '4px solid #4CAF50'
-          }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'success.main' }}>
             <CardContent>
-              <Typography sx={{ fontSize: 14 }} color="text.secondary" gutterBottom>
+              <Typography color="text.secondary" gutterBottom>
                 Prontos para Entrega
               </Typography>
-              <Typography variant="h3" component="div" sx={{ fontWeight: 'bold' }}>
-                {completedCount}
+              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                {stats.completed}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Separação concluída
@@ -185,184 +258,198 @@ const SeparacaoDashboard: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={{ borderLeft: 4, borderColor: 'error.main' }}>
+            <CardContent>
+              <Typography color="text.secondary" gutterBottom>
+                Total de Pedidos
+              </Typography>
+              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
+                {stats.total}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Todos os pedidos
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
 
-      {/* Lista de pedidos */}
-      <Card sx={{ mb: 4 }}>
+      {/* Tabela de Pedidos */}
+      <Card>
         <CardContent>
-          <Typography 
-            variant="h6" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 'bold',
-              color: '#990000',
-              mb: 2
-            }}
-          >
-            Pedidos Recentes
+          <Typography variant="h6" gutterBottom sx={{ color: 'error.main', fontWeight: 'bold' }}>
+            Pedidos para Separação
           </Typography>
           
-          <TableContainer component={Paper} sx={{ boxShadow: 'none' }}>
-            <Table>
-              <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Pedido</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Vendedor</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Items</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Data</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Ações</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {mockOrders.map((order) => (
-                  <TableRow 
-                    key={order.id}
-                    sx={{
-                      '&:hover': { bgcolor: '#f9f9f9' }
-                    }}
-                  >
-                    <TableCell><strong>#{order.id}</strong></TableCell>
-                    <TableCell>{order.cliente}</TableCell>
-                    <TableCell>{order.vendedor}</TableCell>
-                    <TableCell>{order.items} itens</TableCell>
-                    <TableCell>{order.created}</TableCell>
-                    <TableCell>{renderStatus(order.status)}</TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          startIcon={<VisibilityIcon />}
-                          sx={{ 
-                            borderColor: '#990000',
-                            color: '#990000',
-                            '&:hover': { 
-                              borderColor: '#660000',
-                              color: '#660000'
-                            }
-                          }}
-                        >
-                          Ver
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<PrintIcon />}
-                          sx={{ 
-                            bgcolor: '#990000',
-                            '&:hover': { bgcolor: '#660000' }
-                          }}
-                        >
-                          Etiqueta
-                        </Button>
-                      </Box>
-                    </TableCell>
+          {orders.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+              Nenhum pedido encontrado
+            </Typography>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Pedido</strong></TableCell>
+                    <TableCell><strong>Cliente</strong></TableCell>
+                    <TableCell><strong>Valor Total</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell><strong>Criado</strong></TableCell>
+                    <TableCell><strong>Ações</strong></TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-            <Button
-              variant="outlined"
-              sx={{ 
-                borderColor: '#990000',
-                color: '#990000',
-                '&:hover': { 
-                  borderColor: '#660000',
-                  color: '#660000'
-                }
-              }}
-            >
-              Ver todos os pedidos
-            </Button>
-          </Box>
+                </TableHead>
+                <TableBody>
+                  {orders.map((order) => (
+                    <TableRow key={order.id} hover>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          #{order.id.slice(0, 8)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {order.customer?.company_name || 'N/A'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {order.customer?.contact_name || ''}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {formatCurrency(order.total_amount)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        {renderStatus(order.status)}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {formatDate(order.created_at)}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleViewOrder(order)}
+                            title="Ver detalhes"
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                          
+                          {order.status === 'pending' && (
+                            <IconButton
+                              size="small"
+                              onClick={() => handleStartSeparation(order.id)}
+                              disabled={actionLoading}
+                              title="Iniciar separação"
+                              color="primary"
+                            >
+                              <PlayArrowIcon />
+                            </IconButton>
+                          )}
+                          
+                          {order.status === 'processing' && (
+                            <IconButton
+                              size="small"
+                              onClick={() => handleCompleteSeparation(order.id)}
+                              disabled={actionLoading}
+                              title="Concluir separação"
+                              color="success"
+                            >
+                              <CheckCircleIcon />
+                            </IconButton>
+                          )}
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
         </CardContent>
       </Card>
 
-      {/* Ações rápidas */}
-      <Grid container spacing={2}>
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography 
-                variant="h6" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: '#990000'
-                }}
-              >
-                Ações Rápidas
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  sx={{ 
-                    bgcolor: '#990000',
-                    '&:hover': { bgcolor: '#660000' }
-                  }}
-                >
-                  Iniciar Separação
-                </Button>
-                <Button
-                  variant="outlined"
-                  sx={{ 
-                    borderColor: '#990000',
-                    color: '#990000',
-                    '&:hover': { 
-                      borderColor: '#660000',
-                      color: '#660000'
-                    }
-                  }}
-                >
-                  Imprimir Relatório
-                </Button>
-                <Button
-                  variant="outlined"
-                  sx={{ 
-                    borderColor: '#990000',
-                    color: '#990000',
-                    '&:hover': { 
-                      borderColor: '#660000',
-                      color: '#660000'
-                    }
-                  }}
-                >
-                  Atualizar Status
-                </Button>
+      {/* Dialog para ver detalhes do pedido */}
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" component="div">
+            Detalhes do Pedido #{selectedOrder?.id.slice(0, 8)}
+          </Typography>
+        </DialogTitle>
+        <DialogContent>
+          {selectedOrder && (
+            <Box>
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={12}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Cliente:
+                  </Typography>
+                  <Typography variant="body1">
+                    {selectedOrder.customer?.company_name || 'N/A'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedOrder.customer?.contact_name || ''}
+                  </Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Status:
+                  </Typography>
+                  {renderStatus(selectedOrder.status)}
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Valor Total:
+                  </Typography>
+                  <Typography variant="h6" color="primary">
+                    {formatCurrency(selectedOrder.total_amount)}
+                  </Typography>
+                </Grid>
+              </Grid>
+              
+              {selectedOrder.notes && (
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Observações:
+                  </Typography>
+                  <Typography variant="body2">
+                    {selectedOrder.notes}
+                  </Typography>
+                </Box>
+              )}
+              
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Criado em:
+                </Typography>
+                <Typography variant="body2">
+                  {formatDate(selectedOrder.created_at)}
+                </Typography>
               </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Typography 
-                variant="h6" 
-                gutterBottom 
-                sx={{ 
-                  fontWeight: 'bold',
-                  color: '#990000'
-                }}
-              >
-                Informações
-              </Typography>
-              <Typography variant="body2" paragraph>
-                Bem-vindo ao painel de separação da Distribuidora de Carnes Vale do Boi. 
-                Aqui você pode gerenciar os pedidos que precisam ser separados e preparados para entrega.
-              </Typography>
-              <Typography variant="body2">
-                Para iniciar a separação de um novo pedido, clique em "Iniciar Separação" ou 
-                selecione um pedido específico na tabela acima.
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>
+            Fechar
+          </Button>
+          <Button 
+            variant="contained" 
+            startIcon={<PrintIcon />}
+            onClick={() => window.print()}
+          >
+            Imprimir
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

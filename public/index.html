@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no" />
+  <meta name="theme-color" content="#990000" />
+  <meta
+    name="description"
+    content="Sistema de gerenciamento para Distribuidora de Carnes Vale do Boi"
+  />
+  <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+  
+  <!-- Preconectar com fontes e recursos externos -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Meta tags para PWA em dispositivos Apple -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Vale do Boi">
+  
+  <!-- Meta tags para Microsoft -->
+  <meta name="msapplication-TileColor" content="#990000">
+  <meta name="msapplication-navbutton-color" content="#990000">
+  
+  <title>Distribuidora de Carnes Vale do Boi</title>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Oxygen',
+        'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+        sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      background-color: #FFFFFF;
+    }
+    
+    /* Tela de carregamento inicial */
+    .app-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #FFFFFF;
+      z-index: 9999;
+    }
+    
+    .app-loading-content {
+      text-align: center;
+    }
+    
+    .app-loading-title {
+      color: #990000;
+      font-size: 24px;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    
+    .app-loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(153, 0, 0, 0.1);
+      border-radius: 50%;
+      border-top: 4px solid #990000;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <noscript>Você precisa habilitar JavaScript para executar este aplicativo.</noscript>
+  
+  <!-- Tela de carregamento inicial -->
+  <div id="app-loading" class="app-loading">
+    <div class="app-loading-content">
+      <div class="app-loading-title">Distribuidora de Carnes Vale do Boi</div>
+      <div class="app-loading-spinner"></div>
+    </div>
+  </div>
+  
+  <div id="root"></div>
+  
+  <script>
+    // Remove a tela de carregamento quando o app estiver pronto
+    window.addEventListener('load', function() {
+      // Remova após um pequeno atraso para garantir que o React montou
+      setTimeout(function() {
+        var loadingElement = document.getElementById('app-loading');
+        if (loadingElement) {
+          loadingElement.style.opacity = '0';
+          loadingElement.style.transition = 'opacity 0.5s ease';
+          setTimeout(function() {
+            loadingElement.style.display = 'none';
+          }, 500);
+        }
+      }, 1000);
+    });
+  </script>
+</body>
+</html>

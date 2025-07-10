@@ -1,0 +1,20 @@
+{
+  "short_name": "Vale do Boi",
+  "name": "Distribuidora de Carnes Vale do Boi",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#990000",
+  "background_color": "#ffffff",
+  "description": "Sistema de gerenciamento para Distribuidora de Carnes Vale do Boi",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Novo Pedido",
+      "short_name": "Pedido",
+      "description": "Iniciar um novo pedido",
+      "url": "/mobile?action=new-order"
+    }
+  ]
+}

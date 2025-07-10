@@ -1,0 +1,65 @@
+.App {
+  text-align: center;
+}
+
+.logo {
+  height: 50px;
+  margin: 10px;
+}
+
+.pageContainer {
+  padding: 20px;
+  min-height: calc(100vh - 64px);
+}
+
+.fullHeight {
+  min-height: 100vh;
+}
+
+/* Classes específicas para o tema vermelho sangue e branco */
+.redBackground {
+  background-color: #990000 !important;
+  color: white !important;
+}
+
+.whiteBackground {
+  background-color: white !important;
+  color: #333333 !important;
+}
+
+.redBorder {
+  border: 1px solid #990000 !important;
+}
+
+.redText {
+  color: #990000 !important;
+}
+
+/* Animação para indicador de status de conexão */
+@keyframes blink {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.offlineIndicator {
+  animation: blink 1.5s infinite;
+  color: #FF0000;
+}
+
+.onlineIndicator {
+  color: #2e7d32;
+}
+
+/* Estilos responsivos */
+@media (max-width: 600px) {
+  .desktopOnly {
+    display: none !important;
+  }
+}
+
+@media (min-width: 601px) {
+  .mobileOnly {
+    display: none !important;
+  }
+}

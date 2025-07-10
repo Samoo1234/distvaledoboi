@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Typography, 
@@ -6,15 +6,21 @@ import {
   CardContent, 
   Button, 
   Grid, 
-  Divider 
+  Divider,
+  IconButton
 } from '@mui/material';
 import { 
   ShoppingCart as ShoppingCartIcon,
   People as PeopleIcon,
   Assessment as AssessmentIcon,
-  Phone as PhoneIcon
+  Phone as PhoneIcon,
+  ArrowBack as ArrowBackIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import ProductsList from './ProductsList';
+import { Product } from '../../services/productService';
+
+type MobileView = 'home' | 'products' | 'clients' | 'sales';
 
 /**
  * Tela inicial para interface mobile (vendedores)
@@ -22,10 +28,83 @@ import { useAuth } from '../../contexts/AuthContext';
 const MobileHome: React.FC = () => {
   const { user } = useAuth();
   const userName = user?.name || 'Vendedor';
+  const [currentView, setCurrentView] = useState<MobileView>('home');
+  const [cartItems, setCartItems] = useState<{ product: Product; quantity: number }[]>([]);
   
   // Dados simulados para a demonstração
   const todayOrders = 3;
   const todaySales = 'R$ 1.250,00';
+
+  const handleAddToCart = (product: Product, quantity: number) => {
+    setCartItems(prev => {
+      const existingItem = prev.find(item => item.product.id === product.id);
+      if (existingItem) {
+        return prev.map(item =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      return [...prev, { product, quantity }];
+    });
+  };
+
+  const getCartTotal = () => {
+    return cartItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+  };
+
+  // Renderizar tela baseada na view atual
+  if (currentView === 'products') {
+    return (
+      <Box>
+        {/* Header com botão voltar */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          p: 2, 
+          bgcolor: '#990000', 
+          color: 'white' 
+        }}>
+          <IconButton 
+            onClick={() => setCurrentView('home')} 
+            sx={{ color: 'white', mr: 1 }}
+          >
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Produtos Disponíveis
+          </Typography>
+          {cartItems.length > 0 && (
+            <Typography variant="body2">
+              Carrinho: {cartItems.length} itens
+            </Typography>
+          )}
+        </Box>
+        
+        <ProductsList onAddToCart={handleAddToCart} />
+      </Box>
+    );
+  }
+
+  // Outras views (placeholder por enquanto)
+  if (currentView !== 'home') {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+          <IconButton onClick={() => setCurrentView('home')}>
+            <ArrowBackIcon />
+          </IconButton>
+          <Typography variant="h6" sx={{ ml: 1 }}>
+            {currentView === 'clients' && 'Meus Clientes'}
+            {currentView === 'sales' && 'Minhas Vendas'}
+          </Typography>
+        </Box>
+        <Typography variant="body1" color="text.secondary">
+          Esta seção será implementada em breve.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ p: 2 }}>
@@ -46,11 +125,18 @@ const MobileHome: React.FC = () => {
         {/* Botão Novo Pedido */}
         <Grid item xs={12}>
           <Card 
+            onClick={() => setCurrentView('products')}
             sx={{ 
               borderRadius: 2,
               bgcolor: '#990000',
               color: 'white',
-              mb: 2
+              mb: 2,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#7d0000',
+                transform: 'translateY(-1px)',
+                transition: 'all 0.2s'
+              }
             }}
           >
             <CardContent sx={{ 
@@ -60,14 +146,30 @@ const MobileHome: React.FC = () => {
               '&:last-child': { pb: 3 }
             }}>
               <ShoppingCartIcon sx={{ fontSize: 40, mr: 2 }} />
-              <Box>
+              <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                   NOVO PEDIDO
                 </Typography>
                 <Typography variant="body2">
-                  Fazer pedido
+                  Ver produtos e fazer pedido
                 </Typography>
               </Box>
+              {cartItems.length > 0 && (
+                <Box sx={{ 
+                  bgcolor: 'white', 
+                  color: '#990000', 
+                  borderRadius: '50%',
+                  width: 24,
+                  height: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold'
+                }}>
+                  {cartItems.length}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -75,10 +177,17 @@ const MobileHome: React.FC = () => {
         {/* Botão Meus Clientes */}
         <Grid item xs={12}>
           <Card 
+            onClick={() => setCurrentView('clients')}
             sx={{ 
               borderRadius: 2,
               border: '2px solid #990000',
-              mb: 2
+              mb: 2,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#fff0f0',
+                transform: 'translateY(-1px)',
+                transition: 'all 0.2s'
+              }
             }}
           >
             <CardContent sx={{ 
@@ -93,7 +202,7 @@ const MobileHome: React.FC = () => {
                   MEUS CLIENTES
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Ver lista
+                  Gerenciar clientes
                 </Typography>
               </Box>
             </CardContent>
@@ -103,10 +212,17 @@ const MobileHome: React.FC = () => {
         {/* Botão Minhas Vendas */}
         <Grid item xs={12}>
           <Card 
+            onClick={() => setCurrentView('sales')}
             sx={{ 
               borderRadius: 2,
               border: '2px solid #990000',
-              mb: 2
+              mb: 2,
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#fff0f0',
+                transform: 'translateY(-1px)',
+                transition: 'all 0.2s'
+              }
             }}
           >
             <CardContent sx={{ 
@@ -116,7 +232,7 @@ const MobileHome: React.FC = () => {
               '&:last-child': { pb: 3 }
             }}>
               <AssessmentIcon sx={{ fontSize: 40, mr: 2, color: '#990000' }} />
-              <Box>
+              <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333333' }}>
                   MINHAS VENDAS
                 </Typography>
@@ -124,6 +240,13 @@ const MobileHome: React.FC = () => {
                   Hoje: {todaySales}
                 </Typography>
               </Box>
+              {cartItems.length > 0 && (
+                <Box sx={{ textAlign: 'right' }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#990000' }}>
+                    Carrinho: R$ {getCartTotal().toFixed(2)}
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

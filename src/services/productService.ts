@@ -1,76 +1,223 @@
-import apiClient from './apiClient';
+import { supabase } from './supabase';
 
 /**
- * Interface para produtos
+ * Interface para produtos da distribuidora
  */
 export interface Product {
-  id?: number;
+  id: number;
   name: string;
-  description?: string;
-  category: string;
+  description: string;
   price: number;
-  unit: string;
-  stock_quantity: number;
-  image_url?: string;
+  category: string;
+  stock: number;
   active: boolean;
-  created_at?: string;
-  updated_at?: string;
+  sku: string;
+  created_at: string;
+  updated_at: string;
 }
 
 /**
- * Serviço de produtos que utiliza o ApiClient autenticado
+ * Interface para filtros de produtos
+ */
+export interface ProductFilters {
+  category?: string;
+  search?: string;
+  activeOnly?: boolean;
+}
+
+/**
+ * Interface para criação/edição de produtos
+ */
+export interface ProductInput {
+  name: string;
+  description: string;
+  price: number;
+  category: string;
+  stock: number;
+  active?: boolean;
+  sku: string;
+}
+
+/**
+ * Serviço de produtos usando Supabase diretamente
  */
 const productService = {
   /**
-   * Busca todos os produtos
+   * Busca todos os produtos ativos
    */
-  getAll: async (): Promise<Product[]> => {
-    return apiClient.get<Product[]>('/products');
+  getAll: async (filters?: ProductFilters): Promise<Product[]> => {
+    try {
+      let query = supabase
+        .from('products')
+        .select('*')
+        .order('name');
+
+      // Aplicar filtros
+      if (filters?.activeOnly !== false) {
+        query = query.eq('active', true);
+      }
+
+      if (filters?.category) {
+        query = query.eq('category', filters.category);
+      }
+
+      if (filters?.search) {
+        query = query.or(
+          `name.ilike.%${filters.search}%,description.ilike.%${filters.search}%,sku.ilike.%${filters.search}%`
+        );
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Erro ao buscar produtos:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Erro no productService.getAll:', error);
+      throw error;
+    }
   },
 
   /**
    * Busca produto por ID
    */
-  getById: async (id: number): Promise<Product> => {
-    return apiClient.get<Product>(`/products/${id}`);
-  },
+  getById: async (id: number): Promise<Product | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
 
-  /**
-   * Cria um novo produto
-   * Requer permissão de administrador
-   */
-  create: async (product: Product): Promise<Product> => {
-    return apiClient.post<Product>('/products', product);
-  },
+      if (error) {
+        console.error('Erro ao buscar produto:', error);
+        throw error;
+      }
 
-  /**
-   * Atualiza um produto existente
-   * Requer permissão de administrador
-   */
-  update: async (id: number, product: Partial<Product>): Promise<Product> => {
-    return apiClient.put<Product>(`/products/${id}`, product);
-  },
-
-  /**
-   * Exclui um produto
-   * Requer permissão de administrador
-   */
-  delete: async (id: number): Promise<void> => {
-    return apiClient.delete<void>(`/products/${id}`);
+      return data;
+    } catch (error) {
+      console.error('Erro no productService.getById:', error);
+      throw error;
+    }
   },
 
   /**
    * Busca produtos por categoria
    */
   getByCategory: async (category: string): Promise<Product[]> => {
-    return apiClient.get<Product[]>(`/products/category/${category}`);
+    return productService.getAll({ category, activeOnly: true });
   },
 
   /**
    * Busca produtos por termo de pesquisa
    */
   search: async (query: string): Promise<Product[]> => {
-    return apiClient.get<Product[]>(`/products/search?q=${encodeURIComponent(query)}`);
+    return productService.getAll({ search: query, activeOnly: true });
+  },
+
+  /**
+   * Busca todas as categorias disponíveis
+   */
+  getCategories: async (): Promise<string[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('category')
+        .eq('active', true);
+
+      if (error) {
+        console.error('Erro ao buscar categorias:', error);
+        throw error;
+      }
+
+      // Extrair categorias únicas
+      const categories = Array.from(new Set(data?.map(item => item.category) || []));
+      return categories.sort();
+    } catch (error) {
+      console.error('Erro no productService.getCategories:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Cria um novo produto
+   * Requer permissão de administrador
+   */
+  create: async (product: ProductInput): Promise<Product> => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .insert([{
+          ...product,
+          active: product.active ?? true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao criar produto:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Erro no productService.create:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Atualiza um produto existente
+   * Requer permissão de administrador
+   */
+  update: async (id: number, product: Partial<ProductInput>): Promise<Product> => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          ...product,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao atualizar produto:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Erro no productService.update:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Atualiza estoque de um produto
+   */
+  updateStock: async (id: number, newStock: number): Promise<Product> => {
+    return productService.update(id, { stock: newStock });
+  },
+
+  /**
+   * Desativa um produto (soft delete)
+   */
+  deactivate: async (id: number): Promise<Product> => {
+    return productService.update(id, { active: false });
+  },
+
+  /**
+   * Ativa um produto
+   */
+  activate: async (id: number): Promise<Product> => {
+    return productService.update(id, { active: true });
   }
 };
 

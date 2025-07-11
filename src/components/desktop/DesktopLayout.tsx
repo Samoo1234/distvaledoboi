@@ -30,13 +30,25 @@ import {
   LocalShipping as ShippingIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Groups as SalesTeamIcon,
+  LocalShipping as LogisticsIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
 import LoadingScreen from '../shared/LoadingScreen';
 import SeparacaoDashboard from './separacao/SeparacaoDashboard';
+import OrdersSeparacao from './separacao/OrdersSeparacao';
+import ShippingSeparacao from './separacao/ShippingSeparacao';
+import ReportsSeparacao from './separacao/ReportsSeparacao';
 import AdminDashboard from './admin/AdminDashboard';
+import ProductsManagement from './admin/ProductsManagement';
+import CustomersManagement from './admin/CustomersManagement';
+import OrdersManagement from './admin/OrdersManagement';
+import ReportsAdmin from './admin/ReportsAdmin';
+import SettingsAdmin from './admin/SettingsAdmin';
+import SalesTeamManagement from './admin/SalesTeamManagement';
+import LogisticsManagement from './admin/LogisticsManagement';
 
 const drawerWidth = 250;
 
@@ -87,6 +99,8 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({ type }) => {
         { id: 'orders', text: 'Pedidos', icon: <OrdersIcon /> },
         { id: 'products', text: 'Produtos', icon: <ProductsIcon /> },
         { id: 'customers', text: 'Clientes', icon: <CustomersIcon /> },
+        { id: 'salesteam', text: 'Equipe de Vendas', icon: <SalesTeamIcon /> },
+        { id: 'logistics', text: 'Logística', icon: <LogisticsIcon /> },
         { id: 'reports', text: 'Relatórios', icon: <ReportsIcon /> },
         { id: 'settings', text: 'Configurações', icon: <SettingsIcon /> },
       ];
@@ -98,6 +112,42 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({ type }) => {
         return <SeparacaoDashboard />;
       } else if (type === 'admin') {
         return <AdminDashboard />;
+      }
+    }
+    
+    // Interface de separação
+    if (type === 'separacao') {
+      switch (activeSection) {
+        case 'orders':
+          return <OrdersSeparacao />;
+        case 'shipping':
+          return <ShippingSeparacao />;
+        case 'reports':
+          return <ReportsSeparacao />;
+        default:
+          break;
+      }
+    }
+    
+    // Interface administrativa
+    if (type === 'admin') {
+      switch (activeSection) {
+        case 'products':
+          return <ProductsManagement />;
+        case 'customers':
+          return <CustomersManagement />;
+        case 'orders':
+          return <OrdersManagement />;
+        case 'salesteam':
+          return <SalesTeamManagement />;
+        case 'logistics':
+          return <LogisticsManagement />;
+        case 'reports':
+          return <ReportsAdmin />;
+        case 'settings':
+          return <SettingsAdmin />;
+        default:
+          break;
       }
     }
     

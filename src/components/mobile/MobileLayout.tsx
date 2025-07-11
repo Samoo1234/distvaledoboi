@@ -22,6 +22,10 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
 import MobileHome from './MobileHome';
+import OrdersList from './OrdersList';
+import NewOrder from './NewOrder';
+import MobileClientsList from './MobileClientsList';
+import MobileSales from './MobileSales';
 import LoadingScreen from '../shared/LoadingScreen';
 
 /**
@@ -31,42 +35,39 @@ const MobileLayout: React.FC = () => {
   const { user, loading } = useAuth();
   const { isOnline } = useOffline();
   const [activeTab, setActiveTab] = useState(0);
+  const [showNewOrder, setShowNewOrder] = useState(false);
 
   if (loading) {
     return <LoadingScreen />;
   }
 
   const renderContent = () => {
+    // Se estiver criando novo pedido, mostra o componente específico
+    if (showNewOrder) {
+      return (
+        <NewOrder
+          onBack={() => setShowNewOrder(false)}
+          onOrderCreated={() => {
+            setShowNewOrder(false);
+            setActiveTab(1); // Vai para aba de pedidos
+          }}
+        />
+      );
+    }
+
     switch (activeTab) {
       case 0:
         return <MobileHome />;
       case 1:
         return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h6">Pedidos</Typography>
-            <Typography>
-              Aqui será implementada a tela de pedidos.
-            </Typography>
-          </Box>
+          <OrdersList
+            onNewOrder={() => setShowNewOrder(true)}
+          />
         );
       case 2:
-        return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h6">Clientes</Typography>
-            <Typography>
-              Aqui será implementada a tela de clientes.
-            </Typography>
-          </Box>
-        );
+        return <MobileClientsList />;
       case 3:
-        return (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h6">Vendas</Typography>
-            <Typography>
-              Aqui será implementada a tela de vendas.
-            </Typography>
-          </Box>
-        );
+        return <MobileSales />;
       default:
         return <MobileHome />;
     }

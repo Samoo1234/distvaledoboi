@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -19,7 +19,8 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
-  Divider
+  Divider,
+  CircularProgress
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
@@ -30,37 +31,113 @@ import {
   AttachMoney as MoneyIcon,
   MoreVert as MoreVertIcon
 } from '@mui/icons-material';
+import { OrderService, Order } from '../../../services/orders';
+import productService, { Product } from '../../../services/productService';
+import customerService, { Customer } from '../../../services/customerService';
+import { useNotification } from '../../shared/Notification';
 
 /**
- * Dashboard para administradores
+ * Dashboard para administradores com dados reais
  */
 const AdminDashboard: React.FC = () => {
-  // Dados simulados para demonstração
-  const salesTotal = 'R$ 15.240,00';
-  const ordersTotal = 24;
-  const customersTotal = 18;
-  const productsTotal = 152;
-  
-  const topProducts = [
-    { id: 1, name: 'Picanha', quantity: 78, percentage: 85 },
-    { id: 2, name: 'Contra Filé', quantity: 65, percentage: 70 },
-    { id: 3, name: 'Maminha', quantity: 54, percentage: 60 },
-    { id: 4, name: 'Costela', quantity: 42, percentage: 45 }
-  ];
-  
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { showNotification } = useNotification();
+
+  // Carregar dados reais
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [ordersData, productsData, customersData] = await Promise.all([
+        OrderService.getOrders(),
+        productService.getAll({ activeOnly: false }),
+        customerService.getAll({ activeOnly: false })
+      ]);
+      
+      setOrders(ordersData);
+      setProducts(productsData);
+      setCustomers(customersData);
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+      showNotification({ message: 'Erro ao carregar dados do dashboard', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Calcular estatísticas reais
+  const salesTotal = orders.reduce((sum, order) => sum + order.total_amount, 0);
+  const ordersTotal = orders.length;
+  const customersTotal = customers.filter(c => c.active).length;
+  const productsTotal = products.filter(p => p.active).length;
+
+  // Pedidos recentes (últimos 5)
+  const recentOrders = orders
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 5);
+
+  // Produtos mais vendidos (simulado - requer implementação de order_items)
+  const topProducts = products
+    .filter(p => p.active)
+    .sort((a, b) => b.stock - a.stock)
+    .slice(0, 4)
+    .map((product, index) => ({
+      id: product.id,
+      name: product.name,
+      quantity: Math.floor(product.stock / 10), // Simulação baseada no estoque
+      percentage: Math.max(20, 100 - (index * 20))
+    }));
+
+  // Top vendedores (simulado - baseado nos pedidos)
   const topSellers = [
-    { id: 1, name: 'João Silva', sales: 'R$ 5.780,00', orders: 8, avatar: 'J' },
-    { id: 2, name: 'Maria Santos', sales: 'R$ 4.320,00', orders: 6, avatar: 'M' },
-    { id: 3, name: 'Carlos Oliveira', sales: 'R$ 3.150,00', orders: 5, avatar: 'C' }
+    { id: 1, name: 'João Silva', sales: `R$ ${(salesTotal * 0.4).toFixed(2)}`, orders: Math.floor(ordersTotal * 0.4), avatar: 'J' },
+    { id: 2, name: 'Maria Santos', sales: `R$ ${(salesTotal * 0.3).toFixed(2)}`, orders: Math.floor(ordersTotal * 0.3), avatar: 'M' },
+    { id: 3, name: 'Carlos Oliveira', sales: `R$ ${(salesTotal * 0.3).toFixed(2)}`, orders: Math.floor(ordersTotal * 0.3), avatar: 'C' }
   ];
 
-  const recentOrders = [
-    { id: '001', client: 'Açougue A', seller: 'João', value: 'R$ 980,00', date: '10/07/2025' },
-    { id: '002', client: 'Mercado B', seller: 'Maria', value: 'R$ 1.240,00', date: '10/07/2025' },
-    { id: '003', client: 'Padaria C', seller: 'João', value: 'R$ 540,00', date: '10/07/2025' },
-    { id: '004', client: 'Restaurante D', seller: 'Ana', value: 'R$ 2.350,00', date: '10/07/2025' },
-    { id: '005', client: 'Supermercado E', seller: 'Carlos', value: 'R$ 1.780,00', date: '10/07/2025' }
-  ];
+  // Formatação de dados
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  const getOrderStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return '#4caf50';
+      case 'processing': return '#2196f3';
+      case 'pending': return '#ff9800';
+      case 'cancelled': return '#f44336';
+      default: return '#999';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'pending': return 'Pendente';
+      case 'processing': return 'Processando';
+      case 'completed': return 'Concluído';
+      case 'cancelled': return 'Cancelado';
+      default: return status;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -96,12 +173,12 @@ const AdminDashboard: React.FC = () => {
                 </Avatar>
               </Box>
               <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {salesTotal}
+                R$ {salesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingUpIcon sx={{ color: 'success.main', fontSize: 18, mr: 0.5 }} />
                 <Typography variant="body2" color="success.main">
-                  +12% em relação à semana passada
+                  {ordersTotal} pedidos realizados
                 </Typography>
               </Box>
             </CardContent>
@@ -128,7 +205,7 @@ const AdminDashboard: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingUpIcon sx={{ color: 'success.main', fontSize: 18, mr: 0.5 }} />
                 <Typography variant="body2" color="success.main">
-                  +8% em relação à semana passada
+                  Sistema em funcionamento
                 </Typography>
               </Box>
             </CardContent>
@@ -155,7 +232,7 @@ const AdminDashboard: React.FC = () => {
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <TrendingUpIcon sx={{ color: 'success.main', fontSize: 18, mr: 0.5 }} />
                 <Typography variant="body2" color="success.main">
-                  +5% em relação à semana passada
+                  Base crescendo
                 </Typography>
               </Box>
             </CardContent>
@@ -170,7 +247,7 @@ const AdminDashboard: React.FC = () => {
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography sx={{ fontSize: 14 }} color="text.secondary">
-                  Produtos Cadastrados
+                  Produtos Ativos
                 </Typography>
                 <Avatar sx={{ bgcolor: '#990000', width: 40, height: 40 }}>
                   <InventoryIcon fontSize="small" />
@@ -180,9 +257,9 @@ const AdminDashboard: React.FC = () => {
                 {productsTotal}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <TrendingDownIcon sx={{ color: 'error.main', fontSize: 18, mr: 0.5 }} />
-                <Typography variant="body2" color="error.main">
-                  -3% de estoque disponível
+                <InventoryIcon sx={{ color: 'info.main', fontSize: 18, mr: 0.5 }} />
+                <Typography variant="body2" color="info.main">
+                  Catálogo completo
                 </Typography>
               </Box>
             </CardContent>
@@ -228,38 +305,62 @@ const AdminDashboard: React.FC = () => {
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold' }}>Pedido</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Vendedor</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Valor</TableCell>
                       <TableCell sx={{ fontWeight: 'bold' }}>Data</TableCell>
                       <TableCell align="right"></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {recentOrders.map((order) => (
-                      <TableRow 
-                        key={order.id}
-                        sx={{
-                          '&:hover': { bgcolor: '#f9f9f9' }
-                        }}
-                      >
-                        <TableCell><strong>#{order.id}</strong></TableCell>
-                        <TableCell>{order.client}</TableCell>
-                        <TableCell>{order.seller}</TableCell>
-                        <TableCell>{order.value}</TableCell>
-                        <TableCell>{order.date}</TableCell>
-                        <TableCell align="right">
-                          <Button
-                            size="small"
-                            sx={{ 
-                              minWidth: 'auto',
-                              color: '#990000'
-                            }}
-                          >
-                            <MoreVertIcon />
-                          </Button>
+                    {recentOrders.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Nenhum pedido encontrado
+                          </Typography>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      recentOrders.map((order) => (
+                        <TableRow 
+                          key={order.id}
+                          sx={{
+                            '&:hover': { bgcolor: '#f9f9f9' }
+                          }}
+                        >
+                          <TableCell><strong>#{order.id.substring(0, 8)}</strong></TableCell>
+                          <TableCell>{order.customer?.company_name || 'Cliente não informado'}</TableCell>
+                          <TableCell>
+                            <Box 
+                              sx={{ 
+                                display: 'inline-block',
+                                px: 1, 
+                                py: 0.5, 
+                                borderRadius: 1, 
+                                bgcolor: getOrderStatusColor(order.status),
+                                color: 'white',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              {getStatusText(order.status)}
+                            </Box>
+                          </TableCell>
+                          <TableCell>R$ {order.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                          <TableCell>{formatDate(order.created_at)}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              sx={{ 
+                                minWidth: 'auto',
+                                color: '#990000'
+                              }}
+                            >
+                              <MoreVertIcon />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -282,7 +383,7 @@ const AdminDashboard: React.FC = () => {
                     color: '#990000'
                   }}
                 >
-                  Produtos Mais Vendidos
+                  Produtos em Destaque
                 </Typography>
                 <Button
                   size="small"
@@ -291,7 +392,7 @@ const AdminDashboard: React.FC = () => {
                     '&:hover': { color: '#660000' }
                   }}
                 >
-                  Ver relatório
+                  Ver catálogo
                 </Button>
               </Box>
               
@@ -300,8 +401,8 @@ const AdminDashboard: React.FC = () => {
                   <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                     <TableRow>
                       <TableCell sx={{ fontWeight: 'bold' }}>Produto</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Qtd. Vendida</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Desempenho</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Estoque</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Popularidade</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>

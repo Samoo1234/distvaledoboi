@@ -18,6 +18,8 @@ export interface Customer {
   active: boolean;
   created_at: string;
   updated_at: string;
+  cnpj?: string;
+  inscricao_estadual?: string;
 }
 
 /**
@@ -44,6 +46,8 @@ export interface CustomerInput {
   notes?: string;
   salesperson_id?: string;
   active?: boolean;
+  cnpj?: string;
+  inscricao_estadual?: string;
 }
 
 /**

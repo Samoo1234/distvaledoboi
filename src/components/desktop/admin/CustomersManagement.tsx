@@ -52,6 +52,8 @@ interface CustomerForm {
   zip_code: string;
   notes: string;
   salesperson_id: string;
+  cnpj: string;
+  inscricao_estadual: string;
 }
 
 const states = [
@@ -79,7 +81,9 @@ const CustomersManagement: React.FC = () => {
     state: '',
     zip_code: '',
     notes: '',
-    salesperson_id: ''
+    salesperson_id: '',
+    cnpj: '',
+    inscricao_estadual: ''
   });
   const [formErrors, setFormErrors] = useState<Partial<CustomerForm>>({});
   const { showNotification } = useNotification();
@@ -149,7 +153,9 @@ const CustomersManagement: React.FC = () => {
       state: '',
       zip_code: '',
       notes: '',
-      salesperson_id: user?.id || ''
+      salesperson_id: user?.id || '',
+      cnpj: '',
+      inscricao_estadual: ''
     });
     setFormErrors({});
     setDialogOpen(true);
@@ -168,7 +174,9 @@ const CustomersManagement: React.FC = () => {
       state: customer.state || '',
       zip_code: customer.zip_code || '',
       notes: customer.notes || '',
-      salesperson_id: customer.salesperson_id || ''
+      salesperson_id: customer.salesperson_id || '',
+      cnpj: (customer as any).cnpj || '',
+      inscricao_estadual: (customer as any).inscricao_estadual || ''
     });
     setFormErrors({});
     setDialogOpen(true);
@@ -189,7 +197,9 @@ const CustomersManagement: React.FC = () => {
         state: formData.state || undefined,
         zip_code: formData.zip_code.trim() || undefined,
         notes: formData.notes.trim() || undefined,
-        salesperson_id: formData.salesperson_id || undefined
+        salesperson_id: formData.salesperson_id || undefined,
+        cnpj: formData.cnpj.trim() || undefined,
+        inscricao_estadual: formData.inscricao_estadual.trim() || undefined
       };
 
       if (editingCustomer) {
@@ -481,6 +491,28 @@ const CustomersManagement: React.FC = () => {
                   error={!!formErrors.contact_phone}
                   helperText={formErrors.contact_phone}
                   placeholder="(11) 99999-9999"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="CNPJ"
+                  value={formData.cnpj}
+                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                  error={!!formErrors.cnpj}
+                  helperText={formErrors.cnpj}
+                  placeholder="00.000.000/0000-00"
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Inscrição Estadual"
+                  value={formData.inscricao_estadual}
+                  onChange={(e) => setFormData({ ...formData, inscricao_estadual: e.target.value })}
+                  error={!!formErrors.inscricao_estadual}
+                  helperText={formErrors.inscricao_estadual}
+                  placeholder="000.000.000.000"
                 />
               </Grid>
               <Grid item xs={12} md={6}>

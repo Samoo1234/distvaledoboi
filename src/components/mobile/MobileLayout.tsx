@@ -9,7 +9,12 @@ import {
   Toolbar,
   IconButton,
   Badge,
-  Avatar
+  Avatar,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -17,7 +22,9 @@ import {
   Person as ClientIcon,
   Assessment as SalesIcon,
   Menu as MenuIcon,
-  Notifications as NotificationsIcon
+  Notifications as NotificationsIcon,
+  AccountCircle as AccountIcon,
+  Logout as LogoutIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
@@ -32,10 +39,24 @@ import LoadingScreen from '../shared/LoadingScreen';
  * Layout principal para interface mobile (vendedores)
  */
 const MobileLayout: React.FC = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const { isOnline } = useOffline();
   const [activeTab, setActiveTab] = useState(0);
   const [showNewOrder, setShowNewOrder] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleProfileMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleLogout = async () => {
+    handleProfileMenuClose();
+    await signOut();
+  };
 
   if (loading) {
     return <LoadingScreen />;
@@ -124,20 +145,55 @@ const MobileLayout: React.FC = () => {
               </Badge>
             </IconButton>
             
-            <Avatar 
-              sx={{ 
-                ml: 1, 
-                width: 32, 
-                height: 32,
-                bgcolor: '#FFFFFF',
-                color: '#990000'
-              }}
+            <IconButton
+              color="inherit"
+              onClick={handleProfileMenuOpen}
+              sx={{ ml: 1 }}
             >
-              {user?.email?.charAt(0).toUpperCase() || 'U'}
-            </Avatar>
+              <Avatar 
+                sx={{ 
+                  width: 32, 
+                  height: 32,
+                  bgcolor: '#FFFFFF',
+                  color: '#990000'
+                }}
+              >
+                {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+              </Avatar>
+            </IconButton>
           </Box>
         </Toolbar>
       </AppBar>
+
+      {/* Menu do usuário */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleProfileMenuClose}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem onClick={handleProfileMenuClose}>
+          <ListItemIcon>
+            <AccountIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              {user?.name || 'Usuário'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user?.email}
+            </Typography>
+          </ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleLogout}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Sair</ListItemText>
+        </MenuItem>
+      </Menu>
 
       {/* Conteúdo Principal */}
       <Box sx={{ 

@@ -165,39 +165,62 @@ const SettingsAdmin: React.FC = () => {
     try {
       setLoading(true);
       
-      // Buscar usuários do auth e seus perfis
+      // Buscar usuários da tabela user_profiles (que deve existir)
       const { data: profiles, error } = await supabase
         .from('user_profiles')
         .select(`
           id,
           name,
+          email,
           role,
           active,
           created_at
-        `);
+        `)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-
-      // Buscar emails dos usuários
-      const userProfiles: UserProfile[] = [];
-      for (const profile of profiles || []) {
-        const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-        if (authUser.user) {
-          userProfiles.push({
-            id: profile.id,
-            name: profile.name,
-            email: authUser.user.email || '',
-            role: profile.role,
-            active: profile.active,
-            created_at: profile.created_at
-          });
+      if (error) {
+        console.error('Erro ao carregar perfis:', error);
+        
+        // Se a tabela user_profiles não existir, tentar tabela users
+        if (error.message.includes('relation') || error.message.includes('does not exist')) {
+          console.log('Tentando tabela users...');
+          
+          const { data: users, error: usersError } = await supabase
+            .from('users')
+            .select('id, email, user_metadata, role, created_at')
+            .order('created_at', { ascending: false });
+            
+          if (usersError) {
+            console.error('Erro ao carregar usuários:', usersError);
+            showNotification({ 
+              message: 'Tabelas de usuários não encontradas. Verifique se o banco está configurado.', 
+              type: 'warning' 
+            });
+            setUsers([]);
+            return;
+          }
+          
+          // Transformar dados da tabela users para o formato esperado
+          const transformedUsers = users?.map(user => ({
+            id: user.id,
+            name: user.user_metadata?.name || 'Sem nome',
+            email: user.email || 'Sem email',
+            role: user.role || 'vendedor',
+            active: true,
+            created_at: user.created_at
+          })) || [];
+          
+          setUsers(transformedUsers);
+          return;
         }
+        throw error;
       }
 
-      setUsers(userProfiles);
+      setUsers(profiles || []);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
       showNotification({ message: 'Erro ao carregar usuários', type: 'error' });
+      setUsers([]);
     } finally {
       setLoading(false);
     }

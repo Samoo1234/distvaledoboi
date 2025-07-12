@@ -44,7 +44,8 @@ const SeparacaoDashboard: React.FC = () => {
     processing: 0,
     completed: 0,
     cancelled: 0,
-    total: 0
+    total: 0,
+    totalValue: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

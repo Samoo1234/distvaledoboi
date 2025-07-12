@@ -11,23 +11,25 @@ import {
   InputAdornment,
   Alert,
   CircularProgress,
-  Fab
+  Fab,
+  Snackbar,
+  Badge
 } from '@mui/material';
 import {
   Search as SearchIcon,
   Add as AddIcon,
-  ShoppingCart as CartIcon
+  Remove as RemoveIcon,
+  ShoppingCart as CartIcon,
+  Check as CheckIcon
 } from '@mui/icons-material';
 import productService, { Product } from '../../services/productService';
-
-interface ProductsListProps {
-  onAddToCart?: (product: Product, quantity: number) => void;
-}
+import { useCart } from '../../contexts/CartContext';
+import { useNotification } from '../shared/Notification';
 
 /**
  * Lista de produtos para interface mobile (vendedores)
  */
-const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
+const ProductsList: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -35,7 +37,11 @@ const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
-  const [cartCount, setCartCount] = useState(0);
+  const [showAddedSnackbar, setShowAddedSnackbar] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState<string>('');
+  
+  const { state: cartState, addItem, getItemQuantity, hasItem } = useCart();
+  const { showNotification } = useNotification();
 
   // Carregar produtos e categorias
   useEffect(() => {
@@ -92,10 +98,9 @@ const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
   };
 
   const handleAddToCart = (product: Product) => {
-    if (onAddToCart) {
-      onAddToCart(product, 1); // Quantidade padrão: 1kg
-      setCartCount(prev => prev + 1);
-    }
+    addItem(product, 1); // Quantidade padrão: 1kg
+    setLastAddedProduct(product.name);
+    setShowAddedSnackbar(true);
   };
 
   const formatPrice = (price: number) => {
@@ -125,19 +130,32 @@ const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
     );
   }
 
+  if (error) {
+    return (
+      <Box sx={{ p: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={loadProducts}
+          sx={{ bgcolor: '#990000', '&:hover': { bgcolor: '#7d0000' } }}
+        >
+          Tentar Novamente
+        </Button>
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ p: 2, pb: 10 }}>
-      {/* Cabeçalho */}
-      <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold', mb: 3, color: '#333' }}>
-        🥩 Produtos Disponíveis
-      </Typography>
-
-      {/* Busca */}
+      {/* Barra de busca */}
       <TextField
         fullWidth
         placeholder="Buscar produtos..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+        sx={{ mb: 2 }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
@@ -145,108 +163,130 @@ const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
             </InputAdornment>
           ),
         }}
-        sx={{ mb: 2 }}
       />
 
-      {/* Filtros por categoria */}
-      <Box sx={{ mb: 3, overflowX: 'auto' }}>
-        <Box sx={{ display: 'flex', gap: 1, pb: 1 }}>
+      {/* Filtros de categoria */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
+          Categorias
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <Chip
-            label="Todas"
+            label="Todos"
             onClick={() => setSelectedCategory('')}
-            color={selectedCategory === '' ? 'primary' : 'default'}
-            sx={{ minWidth: 'auto' }}
+            variant={selectedCategory === '' ? 'filled' : 'outlined'}
+            sx={{ 
+              bgcolor: selectedCategory === '' ? '#990000' : 'transparent',
+              color: selectedCategory === '' ? 'white' : '#990000',
+              borderColor: '#990000'
+            }}
           />
-          {categories.map(category => (
+          {categories.map((category) => (
             <Chip
               key={category}
               label={category}
               onClick={() => setSelectedCategory(category)}
-              color={selectedCategory === category ? 'primary' : 'default'}
+              variant={selectedCategory === category ? 'filled' : 'outlined'}
               sx={{ 
-                minWidth: 'auto',
-                bgcolor: selectedCategory === category ? getCategoryColor(category) : undefined,
-                color: selectedCategory === category ? 'white' : undefined
+                bgcolor: selectedCategory === category ? getCategoryColor(category) : 'transparent',
+                color: selectedCategory === category ? 'white' : getCategoryColor(category),
+                borderColor: getCategoryColor(category)
               }}
             />
           ))}
         </Box>
       </Box>
 
-      {/* Erro */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
       {/* Lista de produtos */}
       <Grid container spacing={2}>
-        {filteredProducts.map(product => (
-          <Grid item xs={12} key={product.id}>
-            <Card sx={{ 
-              borderRadius: 2,
-              border: `1px solid ${getCategoryColor(product.category)}20`,
-              '&:hover': {
-                boxShadow: 3,
-                transform: 'translateY(-1px)',
-                transition: 'all 0.2s'
-              }
-            }}>
-              <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333', fontSize: '1.1rem' }}>
+        {filteredProducts.map((product) => {
+          const quantityInCart = getItemQuantity(product.id);
+          const isInCart = hasItem(product.id);
+          
+          return (
+            <Grid item xs={12} sm={6} md={4} key={product.id}>
+              <Card 
+                sx={{ 
+                  borderRadius: 2,
+                  height: '100%',
+                  border: isInCart ? '2px solid #4caf50' : '1px solid #e0e0e0',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: 3,
+                    transition: 'all 0.2s'
+                  }
+                }}
+              >
+                <CardContent>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', lineHeight: 1.2 }}>
                       {product.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {product.description}
-                    </Typography>
-                    <Chip
-                      label={product.category}
-                      size="small"
-                      sx={{
-                        bgcolor: getCategoryColor(product.category),
-                        color: 'white',
-                        fontSize: '0.7rem'
-                      }}
-                    />
+                    {isInCart && (
+                      <Chip
+                        icon={<CheckIcon />}
+                        label={`${quantityInCart}kg`}
+                        size="small"
+                        color="success"
+                        sx={{ ml: 1 }}
+                      />
+                    )}
                   </Box>
-                  <Box sx={{ textAlign: 'right', ml: 2 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#990000' }}>
-                      {formatPrice(product.price)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      por kg
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                  <Box>
-                    <Typography variant="body2" color="text.secondary">
-                      SKU: {product.sku} • Estoque: {product.stock}kg
-                    </Typography>
-                  </Box>
-                  <Button
-                    variant="contained"
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {product.description}
+                  </Typography>
+                  
+                  <Chip
+                    label={product.category}
                     size="small"
-                    startIcon={<AddIcon />}
-                    onClick={() => handleAddToCart(product)}
-                    disabled={product.stock <= 0}
                     sx={{
-                      bgcolor: '#990000',
-                      '&:hover': { bgcolor: '#7d0000' },
-                      borderRadius: 2
+                      bgcolor: getCategoryColor(product.category),
+                      color: 'white',
+                      fontWeight: 'bold',
+                      mb: 2
                     }}
-                  >
-                    Adicionar
-                  </Button>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
+                  />
+                  
+                  <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#990000', mb: 1 }}>
+                    {formatPrice(product.price)}
+                    <Typography component="span" variant="body2" sx={{ color: 'text.secondary', ml: 1 }}>
+                      /kg
+                    </Typography>
+                  </Typography>
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        SKU: {product.sku} • Estoque: {product.stock}kg
+                      </Typography>
+                    </Box>
+                    <Button
+                      variant={isInCart ? "outlined" : "contained"}
+                      size="small"
+                      startIcon={isInCart ? <AddIcon /> : <AddIcon />}
+                      onClick={() => handleAddToCart(product)}
+                      disabled={product.stock <= 0}
+                      sx={{
+                        bgcolor: isInCart ? 'transparent' : '#990000',
+                        color: isInCart ? '#4caf50' : 'white',
+                        borderColor: isInCart ? '#4caf50' : '#990000',
+                        '&:hover': { 
+                          bgcolor: isInCart ? '#e8f5e8' : '#7d0000',
+                          borderColor: isInCart ? '#4caf50' : '#7d0000'
+                        },
+                        borderRadius: 2,
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {isInCart ? 'Adicionar +' : 'Adicionar'}
+                    </Button>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+          );
+        })}
       </Grid>
 
       {/* Mensagem quando não há produtos */}
@@ -262,41 +302,36 @@ const ProductsList: React.FC<ProductsListProps> = ({ onAddToCart }) => {
       )}
 
       {/* Botão flutuante do carrinho */}
-      {cartCount > 0 && (
+      {cartState.itemCount > 0 && (
         <Fab
           color="primary"
           sx={{
             position: 'fixed',
             bottom: 80,
             right: 16,
-            bgcolor: '#990000',
-            '&:hover': { bgcolor: '#7d0000' }
+            bgcolor: '#4caf50',
+            '&:hover': { bgcolor: '#388e3c' }
           }}
         >
-          <Box sx={{ position: 'relative' }}>
+          <Badge badgeContent={cartState.itemCount} color="error">
             <CartIcon />
-            <Box
-              sx={{
-                position: 'absolute',
-                top: -8,
-                right: -8,
-                bgcolor: 'white',
-                color: '#990000',
-                borderRadius: '50%',
-                width: 20,
-                height: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 'bold'
-              }}
-            >
-              {cartCount}
-            </Box>
-          </Box>
+          </Badge>
         </Fab>
       )}
+
+      {/* Snackbar para feedback de adição */}
+      <Snackbar
+        open={showAddedSnackbar}
+        autoHideDuration={2000}
+        onClose={() => setShowAddedSnackbar(false)}
+        message={`${lastAddedProduct} adicionado ao carrinho!`}
+        sx={{ 
+          '& .MuiSnackbarContent-root': {
+            bgcolor: '#4caf50',
+            color: 'white'
+          }
+        }}
+      />
     </Box>
   );
 };

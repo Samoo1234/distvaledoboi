@@ -7,50 +7,90 @@ import {
   Button, 
   Grid, 
   Divider,
-  IconButton
+  IconButton,
+  Badge,
+  Chip,
+  Alert,
+  CircularProgress
 } from '@mui/material';
 import { 
   ShoppingCart as ShoppingCartIcon,
   People as PeopleIcon,
   Assessment as AssessmentIcon,
   Phone as PhoneIcon,
-  ArrowBack as ArrowBackIcon
+  ArrowBack as ArrowBackIcon,
+  Add as AddIcon,
+  Sync as SyncIcon,
+  CloudOff as CloudOffIcon,
+  Wifi as WifiIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCart } from '../../contexts/CartContext';
+import { useOffline } from '../../hooks/useOffline';
+import { useNotification } from '../shared/Notification';
 import ProductsList from './ProductsList';
 import { Product } from '../../services/productService';
 
 type MobileView = 'home' | 'products' | 'clients' | 'sales';
 
+interface MobileHomeProps {
+  onNewOrder?: () => void;
+}
+
 /**
  * Tela inicial para interface mobile (vendedores)
  */
-const MobileHome: React.FC = () => {
+const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
   const { user } = useAuth();
+  const { state: cartState } = useCart();
+  const { 
+    isOnline, 
+    hasOfflineData, 
+    pendingSyncCount, 
+    syncData, 
+    clearOfflineData 
+  } = useOffline();
+  const { showNotification } = useNotification();
   const userName = user?.name || 'Vendedor';
   const [currentView, setCurrentView] = useState<MobileView>('home');
-  const [cartItems, setCartItems] = useState<{ product: Product; quantity: number }[]>([]);
+  const [syncing, setSyncing] = useState(false);
   
   // Dados simulados para a demonstração
   const todayOrders = 3;
   const todaySales = 'R$ 1.250,00';
 
-  const handleAddToCart = (product: Product, quantity: number) => {
-    setCartItems(prev => {
-      const existingItem = prev.find(item => item.product.id === product.id);
-      if (existingItem) {
-        return prev.map(item =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
+  // Função para sincronizar dados
+  const handleSync = async () => {
+    if (!isOnline) {
+      showNotification({ message: 'Não é possível sincronizar offline', type: 'error' });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const success = await syncData();
+      if (success) {
+        showNotification({ message: 'Dados sincronizados com sucesso!', type: 'success' });
+      } else {
+        showNotification({ message: 'Erro na sincronização', type: 'error' });
       }
-      return [...prev, { product, quantity }];
-    });
+    } catch (error) {
+      showNotification({ message: 'Erro na sincronização', type: 'error' });
+    } finally {
+      setSyncing(false);
+    }
   };
 
-  const getCartTotal = () => {
-    return cartItems.reduce((total, item) => total + (item.product.price * item.quantity), 0);
+  // Função para iniciar novo pedido
+  const handleNewOrder = () => {
+    console.log('🎯 MobileHome: Iniciando novo pedido...');
+    if (onNewOrder) {
+      onNewOrder();
+    } else {
+      console.warn('⚠️ onNewOrder não foi passado para MobileHome');
+      // Fallback para produtos se não tiver callback
+      setCurrentView('products');
+    }
   };
 
   // Renderizar tela baseada na view atual
@@ -74,58 +114,142 @@ const MobileHome: React.FC = () => {
           <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Produtos Disponíveis
           </Typography>
-          {cartItems.length > 0 && (
-            <Typography variant="body2">
-              Carrinho: {cartItems.length} itens
-            </Typography>
+          {cartState.itemCount > 0 && (
+            <Badge badgeContent={cartState.itemCount} color="error">
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                bgcolor: 'rgba(255,255,255,0.1)', 
+                borderRadius: 1, 
+                px: 1 
+              }}>
+                <ShoppingCartIcon sx={{ mr: 0.5 }} />
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  R$ {cartState.total.toFixed(2)}
+                </Typography>
+              </Box>
+            </Badge>
           )}
         </Box>
         
-        <ProductsList onAddToCart={handleAddToCart} />
+        <ProductsList />
       </Box>
     );
   }
 
-  // Outras views (placeholder por enquanto)
-  if (currentView !== 'home') {
-    return (
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-          <IconButton onClick={() => setCurrentView('home')}>
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h6" sx={{ ml: 1 }}>
-            {currentView === 'clients' && 'Meus Clientes'}
-            {currentView === 'sales' && 'Minhas Vendas'}
-          </Typography>
-        </Box>
-        <Typography variant="body1" color="text.secondary">
-          Esta seção será implementada em breve.
-        </Typography>
-      </Box>
-    );
-  }
-
+  // Tela inicial
   return (
     <Box sx={{ p: 2 }}>
-      {/* Cabeçalho com boas-vindas */}
+      {/* Status de conectividade */}
+      {!isOnline && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <CloudOffIcon sx={{ mr: 1 }} />
+              <Typography variant="body2">
+                Modo offline - Suas ações serão sincronizadas quando conectar
+              </Typography>
+            </Box>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Status de sincronização */}
+      {hasOfflineData && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                {pendingSyncCount} itens aguardando sincronização
+              </Typography>
+              <Typography variant="caption">
+                {isOnline ? 'Clique para sincronizar agora' : 'Aguardando conexão'}
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <IconButton 
+                size="small" 
+                onClick={handleSync}
+                disabled={!isOnline || syncing}
+                sx={{ bgcolor: '#2196f3', color: 'white' }}
+              >
+                {syncing ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
+              </IconButton>
+              <IconButton 
+                size="small" 
+                onClick={() => {
+                  clearOfflineData();
+                  showNotification({ message: 'Dados offline limpos', type: 'info' });
+                }}
+                color="error"
+              >
+                <Typography variant="caption">Limpar</Typography>
+              </IconButton>
+            </Box>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Cabeçalho */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold', color: '#333333' }}>
-          👋 Olá, {userName}!
-        </Typography>
-        <Typography variant="subtitle1" sx={{ color: '#666666' }}>
-          📊 {todayOrders} pedidos hoje
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#333333' }}>
+              👋 Olá, {userName}!
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              {todayOrders} pedidos hoje • {todaySales}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip 
+              icon={isOnline ? <WifiIcon /> : <CloudOffIcon />}
+              label={isOnline ? 'Online' : 'Offline'}
+              color={isOnline ? 'success' : 'warning'}
+              variant="outlined"
+              size="small"
+            />
+          </Box>
+        </Box>
       </Box>
 
-      <Divider sx={{ mb: 3 }} />
+      {/* Indicador de carrinho ativo */}
+      {cartState.itemCount > 0 && (
+        <Card sx={{ 
+          mb: 3, 
+          bgcolor: '#e8f5e8', 
+          border: '2px solid #4caf50',
+          borderRadius: 2 
+        }}>
+          <CardContent sx={{ p: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <ShoppingCartIcon sx={{ color: '#4caf50', mr: 1 }} />
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                    Carrinho Ativo
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {cartState.itemCount} itens • R$ {cartState.total.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+              <Chip 
+                label={cartState.selectedCustomer ? cartState.selectedCustomer.company_name : 'Sem cliente'}
+                size="small"
+                color={cartState.selectedCustomer ? "success" : "default"}
+                sx={{ fontWeight: 'bold' }}
+              />
+            </Box>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Botões principais */}
       <Grid container spacing={2}>
         {/* Botão Novo Pedido */}
         <Grid item xs={12}>
           <Card 
-            onClick={() => setCurrentView('products')}
+            onClick={handleNewOrder}
             sx={{ 
               borderRadius: 2,
               bgcolor: '#990000',
@@ -148,27 +272,32 @@ const MobileHome: React.FC = () => {
               <ShoppingCartIcon sx={{ fontSize: 40, mr: 2 }} />
               <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-                  NOVO PEDIDO
+                  {cartState.itemCount > 0 ? 'CONTINUAR PEDIDO' : 'NOVO PEDIDO'}
                 </Typography>
                 <Typography variant="body2">
-                  Ver produtos e fazer pedido
+                  {cartState.itemCount > 0 ? 
+                    `${cartState.itemCount} itens no carrinho` : 
+                    'Criar pedido com workflow completo'
+                  }
                 </Typography>
               </Box>
-              {cartItems.length > 0 && (
-                <Box sx={{ 
-                  bgcolor: 'white', 
-                  color: '#990000', 
-                  borderRadius: '50%',
-                  width: 24,
-                  height: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.75rem',
-                  fontWeight: 'bold'
-                }}>
-                  {cartItems.length}
-                </Box>
+              {cartState.itemCount > 0 && (
+                <Badge badgeContent={cartState.itemCount} color="error">
+                  <Box sx={{ 
+                    bgcolor: 'white', 
+                    color: '#990000', 
+                    borderRadius: '50%',
+                    width: 32,
+                    height: 32,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.875rem',
+                    fontWeight: 'bold'
+                  }}>
+                    <AddIcon fontSize="small" />
+                  </Box>
+                </Badge>
               )}
             </CardContent>
           </Card>
@@ -197,12 +326,12 @@ const MobileHome: React.FC = () => {
               '&:last-child': { pb: 3 }
             }}>
               <PeopleIcon sx={{ fontSize: 40, mr: 2, color: '#990000' }} />
-              <Box>
+              <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333333' }}>
                   MEUS CLIENTES
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Gerenciar clientes
+                  Lista de clientes ativos
                 </Typography>
               </Box>
             </CardContent>
@@ -240,10 +369,10 @@ const MobileHome: React.FC = () => {
                   Hoje: {todaySales}
                 </Typography>
               </Box>
-              {cartItems.length > 0 && (
+              {cartState.itemCount > 0 && (
                 <Box sx={{ textAlign: 'right' }}>
                   <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#990000' }}>
-                    Carrinho: R$ {getCartTotal().toFixed(2)}
+                    Carrinho: R$ {cartState.total.toFixed(2)}
                   </Typography>
                 </Box>
               )}
@@ -256,8 +385,13 @@ const MobileHome: React.FC = () => {
           <Card 
             sx={{ 
               borderRadius: 2,
-              border: '2px solid #990000',
-              mb: 2
+              bgcolor: '#f5f5f5',
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: '#e0e0e0',
+                transform: 'translateY(-1px)',
+                transition: 'all 0.2s'
+              }
             }}
           >
             <CardContent sx={{ 
@@ -266,29 +400,19 @@ const MobileHome: React.FC = () => {
               p: 3,
               '&:last-child': { pb: 3 }
             }}>
-              <PhoneIcon sx={{ fontSize: 40, mr: 2, color: '#990000' }} />
-              <Box>
+              <PhoneIcon sx={{ fontSize: 40, mr: 2, color: '#666666' }} />
+              <Box sx={{ flex: 1 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#333333' }}>
                   SUPORTE
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Contato
+                  Precisa de ajuda?
                 </Typography>
               </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
-
-      {/* Rodapé com nome completo */}
-      <Box sx={{ mt: 4, textAlign: 'center' }}>
-        <Typography variant="body2" sx={{ color: '#666666', fontStyle: 'italic' }}>
-          Distribuidora de Carnes Vale do Boi
-        </Typography>
-        <Typography variant="caption" sx={{ color: '#999999' }}>
-          Versão 1.0
-        </Typography>
-      </Box>
     </Box>
   );
 };

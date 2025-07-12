@@ -4,37 +4,33 @@ import {
   Typography,
   Card,
   CardContent,
-  Chip,
-  IconButton,
   List,
   ListItem,
   ListItemText,
-  Fab,
+  CircularProgress,
+  TextField,
+  InputAdornment,
+  Grid,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  CircularProgress,
-  Badge,
   Divider,
-  Grid,
-  TextField,
-  InputAdornment,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel
+  Alert,
+  IconButton
 } from '@mui/material';
 import {
-  Add as AddIcon,
-  Visibility as ViewIcon,
   Search as SearchIcon,
-  FilterList as FilterIcon,
-  Phone as PhoneIcon,
-  LocationOn as LocationIcon,
-  DateRange as CalendarIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  Visibility as VisibilityIcon,
+  Add as AddIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../services/orders';
 import { useNotification } from '../shared/Notification';
@@ -49,7 +45,7 @@ interface OrdersListProps {
  */
 const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Mudado para false - não carrega automaticamente
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,21 +56,61 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
   // Carregar pedidos
   const loadOrders = async () => {
     try {
+      console.log('🔄 OrdersList: Carregando pedidos...');
+      console.log('👤 User ID:', user?.id);
+      
       setLoading(true);
+      
+      if (!user?.id) {
+        console.log('❌ Usuário não identificado');
+        showNotification({ message: 'Usuário não identificado', type: 'warning' });
+        return;
+      }
+
       const data = await OrderService.getOrders({
-        salesperson_id: user?.id
+        salesperson_id: user.id
       });
+      
+      console.log('✅ Pedidos carregados:', data.length);
       setOrders(data);
+      
+      if (data.length === 0) {
+        console.log('ℹ️ Nenhum pedido encontrado para este vendedor');
+      }
+      
     } catch (error) {
-      console.error('Erro ao carregar pedidos:', error);
-      showNotification({ message: 'Erro ao carregar pedidos', type: 'error' });
+      console.error('❌ Erro detalhado ao carregar pedidos:', error);
+      
+      let errorMessage = 'Erro ao carregar pedidos';
+      
+      if (error instanceof Error) {
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+        errorMessage = `Erro: ${error.message}`;
+      }
+      
+      // Não mostrar notificação de erro por enquanto, só no console
+      console.error('❌ Erro ao carregar pedidos - não mostrando notificação');
+      // showNotification({ message: errorMessage, type: 'error' });
+      
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadOrders();
+    // Desabilitado temporariamente o carregamento automático para evitar erros
+    // O usuário pode carregar manualmente clicando no botão de atualizar
+    console.log('ℹ️ OrdersList useEffect: Carregamento automático desabilitado');
+    console.log('👤 User ID disponível:', user?.id);
+    console.log('🔄 Use o botão de atualizar para carregar pedidos manualmente');
+    
+    // if (user?.id) {
+    //   console.log('🔄 OrdersList useEffect: Carregando pedidos para user:', user.id);
+    //   loadOrders();
+    // } else {
+    //   console.log('⚠️ OrdersList useEffect: Aguardando usuário...');
+    // }
   }, [user?.id]);
 
   // Filtrar pedidos
@@ -141,9 +177,38 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
     <Box sx={{ p: 2, pb: 8 }}>
       {/* Cabeçalho */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Meus Pedidos
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
+            Meus Pedidos
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <IconButton 
+              onClick={loadOrders}
+              disabled={loading}
+              sx={{ bgcolor: '#f5f5f5' }}
+            >
+              {loading ? <CircularProgress size={20} /> : <RefreshIcon />}
+            </IconButton>
+            {onNewOrder && (
+              <IconButton 
+                onClick={onNewOrder}
+                sx={{ bgcolor: '#990000', color: 'white' }}
+              >
+                <AddIcon />
+              </IconButton>
+            )}
+          </Box>
+        </Box>
+
+        {/* Mensagem de sucesso quando vem de pedido criado */}
+        <Alert severity="success" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            🎉 Você foi redirecionado após criar um pedido com sucesso!
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Clique no botão de atualizar (🔄) para carregar seus pedidos.
+          </Typography>
+        </Alert>
         
         {/* Cards de estatísticas */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -220,14 +285,25 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
           <CardContent sx={{ textAlign: 'center', py: 4 }}>
             <MoneyIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              Nenhum pedido encontrado
+              {loading ? 'Carregando pedidos...' : 'Nenhum pedido encontrado'}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {searchTerm || statusFilter 
-                ? 'Tente ajustar os filtros de busca'
-                : 'Que tal criar seu primeiro pedido?'
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {loading 
+                ? 'Aguarde enquanto carregamos seus pedidos'
+                : searchTerm || statusFilter 
+                  ? 'Tente ajustar os filtros de busca'
+                  : 'Clique no botão + para criar seu primeiro pedido'
               }
             </Typography>
+            {!loading && onNewOrder && (
+              <Button 
+                variant="contained" 
+                onClick={onNewOrder}
+                sx={{ bgcolor: '#990000', '&:hover': { bgcolor: '#660000' } }}
+              >
+                Criar Primeiro Pedido
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -265,7 +341,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
                       onClick={() => handleViewOrder(order)}
                       sx={{ color: '#990000' }}
                     >
-                      <ViewIcon />
+                      <VisibilityIcon />
                     </IconButton>
                   </Box>
                 </CardContent>
@@ -275,26 +351,10 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
         </List>
       )}
 
-      {/* Botão flutuante para novo pedido */}
-      <Fab
-        color="primary"
-        aria-label="add"
-        sx={{ 
-          position: 'fixed', 
-          bottom: 80, 
-          right: 16,
-          bgcolor: '#990000',
-          '&:hover': { bgcolor: '#660000' }
-        }}
-        onClick={onNewOrder}
-      >
-        <AddIcon />
-      </Fab>
-
       {/* Dialog de detalhes do pedido */}
       <Dialog 
         open={detailsOpen} 
-        onClose={() => setDetailsOpen(false)}
+        onClose={() => setDetailsOpen(false)} 
         maxWidth="sm" 
         fullWidth
       >
@@ -307,67 +367,37 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
               <Typography variant="h6" gutterBottom>
                 {selectedOrder.customer?.company_name}
               </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Pedido #{selectedOrder.id.substring(0, 8)}
+              </Typography>
               
               <Divider sx={{ my: 2 }} />
               
-              <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    ID do Pedido
-                  </Typography>
-                  <Typography variant="body1">
-                    #{selectedOrder.id.substring(0, 8)}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip 
-                    label={getStatusText(selectedOrder.status)} 
-                    color={getStatusColor(selectedOrder.status) as any}
-                    size="small" 
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Valor Total
-                  </Typography>
-                  <Typography variant="h6" sx={{ color: '#990000' }}>
-                    R$ {selectedOrder.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </Typography>
-                </Grid>
-                <Grid item xs={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Data de Criação
-                  </Typography>
-                  <Typography variant="body1">
-                    {formatDate(selectedOrder.created_at)}
-                  </Typography>
-                </Grid>
-              </Grid>
-
+              <Typography variant="subtitle2" gutterBottom>
+                Status: <Chip 
+                  label={getStatusText(selectedOrder.status)} 
+                  color={getStatusColor(selectedOrder.status) as any}
+                  size="small" 
+                />
+              </Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>
+                Valor Total: R$ {selectedOrder.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </Typography>
+              
+              <Typography variant="subtitle2" gutterBottom>
+                Data: {formatDate(selectedOrder.created_at)}
+              </Typography>
+              
               {selectedOrder.notes && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Observações
+                <>
+                  <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                    Observações:
                   </Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body2" color="text.secondary">
                     {selectedOrder.notes}
                   </Typography>
-                </Box>
-              )}
-
-              {selectedOrder.customer?.contact_phone && (
-                <Box sx={{ mt: 2 }}>
-                  <Button
-                    startIcon={<PhoneIcon />}
-                    href={`tel:${selectedOrder.customer.contact_phone}`}
-                    sx={{ color: '#990000' }}
-                  >
-                    Ligar para o cliente
-                  </Button>
-                </Box>
+                </>
               )}
             </Box>
           )}

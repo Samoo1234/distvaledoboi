@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  BottomNavigation, 
-  BottomNavigationAction, 
-  Paper, 
-  Typography, 
+import {
+  Box,
   AppBar,
   Toolbar,
+  Typography,
+  BottomNavigation,
+  BottomNavigationAction,
+  Paper,
   IconButton,
   Badge,
   Avatar,
@@ -14,25 +14,26 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Divider
+  Divider,
+  Fab
 } from '@mui/material';
 import {
   Home as HomeIcon,
   ShoppingCart as CartIcon,
-  Person as ClientIcon,
-  Assessment as SalesIcon,
-  Menu as MenuIcon,
+  People as ClientIcon,
+  TrendingUp as SalesIcon,
   Notifications as NotificationsIcon,
   AccountCircle as AccountIcon,
-  Logout as LogoutIcon
+  Logout as LogoutIcon,
+  Add as AddIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
 import MobileHome from './MobileHome';
 import OrdersList from './OrdersList';
-import NewOrder from './NewOrder';
 import MobileClientsList from './MobileClientsList';
 import MobileSales from './MobileSales';
+import NewOrder from './NewOrder';
 import LoadingScreen from '../shared/LoadingScreen';
 
 /**
@@ -58,6 +59,12 @@ const MobileLayout: React.FC = () => {
     await signOut();
   };
 
+  // Função para iniciar novo pedido
+  const handleNewOrder = () => {
+    console.log('🎯 MobileLayout: Iniciando novo pedido...');
+    setShowNewOrder(true);
+  };
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -78,7 +85,7 @@ const MobileLayout: React.FC = () => {
 
     switch (activeTab) {
       case 0:
-        return <MobileHome />;
+        return <MobileHome onNewOrder={() => setShowNewOrder(true)} />;
       case 1:
         return (
           <OrdersList
@@ -90,7 +97,7 @@ const MobileLayout: React.FC = () => {
       case 3:
         return <MobileSales />;
       default:
-        return <MobileHome />;
+        return <MobileHome onNewOrder={() => setShowNewOrder(true)} />;
     }
   };
 
@@ -101,67 +108,68 @@ const MobileLayout: React.FC = () => {
       height: '100vh',
       bgcolor: '#ffffff'
     }}>
-      {/* App Bar */}
+      {/* Status de conectividade */}
+      {!isOnline && (
+        <Box 
+          sx={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bgcolor: '#ff9800', 
+            color: 'white', 
+            py: 1, 
+            px: 2, 
+            zIndex: 1000,
+            textAlign: 'center'
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+            📡 Modo Offline - Dados serão sincronizados quando conectar
+          </Typography>
+        </Box>
+      )}
+
+      {/* Header da aplicação */}
       <AppBar position="static" sx={{ bgcolor: '#990000' }}>
         <Toolbar>
-          <IconButton
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          
-          <Typography 
-            variant="h6" 
-            component="div" 
-            sx={{ flexGrow: 1 }}
-          >
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
             Vale do Boi
           </Typography>
           
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            {!isOnline && (
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  bgcolor: 'error.main', 
-                  color: 'white', 
-                  px: 1, 
-                  py: 0.5, 
-                  borderRadius: 1,
-                  mr: 1
-                }}
-              >
-                Offline
-              </Typography>
-            )}
-            
-            <IconButton color="inherit">
-              <Badge badgeContent={3} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
-            
-            <IconButton
-              color="inherit"
-              onClick={handleProfileMenuOpen}
-              sx={{ ml: 1 }}
-            >
-              <Avatar 
-                sx={{ 
-                  width: 32, 
-                  height: 32,
-                  bgcolor: '#FFFFFF',
-                  color: '#990000'
-                }}
-              >
-                {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-              </Avatar>
-            </IconButton>
+          {/* Indicador de status de conectividade */}
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <Box 
+              sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                bgcolor: isOnline ? '#4caf50' : '#ff9800',
+                mr: 1
+              }} 
+            />
+            <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>
+              {isOnline ? 'Online' : 'Offline'}
+            </Typography>
           </Box>
+
+          {/* Ícone de notificações */}
+          <IconButton color="inherit" sx={{ mr: 1 }}>
+            <Badge badgeContent={0} color="error">
+              <NotificationsIcon />
+            </Badge>
+          </IconButton>
+
+          {/* Avatar do usuário */}
+          <IconButton 
+            color="inherit" 
+            onClick={handleProfileMenuOpen}
+            sx={{ p: 0 }}
+          >
+            <Avatar sx={{ bgcolor: '#7d0000', width: 32, height: 32 }}>
+              {user?.name?.charAt(0).toUpperCase() || 'U'}
+            </Avatar>
+          </IconButton>
         </Toolbar>
       </AppBar>
 
@@ -203,6 +211,27 @@ const MobileLayout: React.FC = () => {
       }}>
         {renderContent()}
       </Box>
+
+      {/* FAB para Novo Pedido */}
+      {!showNewOrder && (
+        <Fab
+          color="primary"
+          aria-label="novo pedido"
+          onClick={handleNewOrder}
+          sx={{
+            position: 'fixed',
+            bottom: 80,
+            right: 16,
+            bgcolor: '#990000',
+            '&:hover': {
+              bgcolor: '#7d0000'
+            },
+            zIndex: 1000
+          }}
+        >
+          <AddIcon />
+        </Fab>
+      )}
 
       {/* Navegação Inferior */}
       <Paper 

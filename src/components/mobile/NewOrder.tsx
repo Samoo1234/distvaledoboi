@@ -28,7 +28,9 @@ import {
   InputAdornment,
   Badge,
   Fab,
-  CircularProgress
+  CircularProgress,
+  Alert,
+  Skeleton
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
@@ -38,21 +40,19 @@ import {
   ShoppingCart as CartIcon,
   Person as PersonIcon,
   Check as CheckIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Edit as EditIcon,
+  Warning as WarningIcon,
+  Refresh as RefreshIcon
 } from '@mui/icons-material';
 import productService, { Product } from '../../services/productService';
 import customerService, { Customer } from '../../services/customerService';
+import { useCart } from '../../contexts/CartContext';
 import { useNotification } from '../shared/Notification';
 import { useAuth } from '../../contexts/AuthContext';
 
-interface CartItem {
-  product: Product;
-  quantity: number;
-  total: number;
-}
-
 interface NewOrderProps {
-  onBack?: () => void;
+  onBack: () => void;
   onOrderCreated?: () => void;
 }
 
@@ -63,41 +63,87 @@ const steps = ['Cliente', 'Produtos', 'Revisão'];
  */
 const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(true);
+  const [loadingProducts, setLoadingProducts] = useState(true);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [notes, setNotes] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const { showNotification } = useNotification();
   const { user } = useAuth();
 
+  // Usar o contexto do carrinho
+  const { 
+    state: cartState, 
+    addItem, 
+    removeItem, 
+    updateQuantity, 
+    setCustomer, 
+    setNotes,
+    clearCart 
+  } = useCart();
+
   // Carregar dados iniciais
   useEffect(() => {
+    console.log('🔄 NewOrder: Carregando dados iniciais...');
+    console.log('👤 Usuário:', user?.id);
     loadCustomers();
     loadProducts();
-  }, []);
+  }, [user?.id]);
+
+  // Se já tiver cliente no carrinho, pula para próximo passo
+  useEffect(() => {
+    if (cartState.selectedCustomer && activeStep === 0) {
+      console.log('✅ Cliente já selecionado, pulando para próximo passo');
+      setActiveStep(1);
+    }
+  }, [cartState.selectedCustomer, activeStep]);
 
   const loadCustomers = async () => {
     try {
-      const data = await customerService.getAll({ salesperson_id: user?.id });
+      console.log('🔄 Carregando clientes...');
+      setLoadingCustomers(true);
+      setError(null);
+      
+      if (!user?.id) {
+        throw new Error('Usuário não identificado');
+      }
+
+      const data = await customerService.getAll({ salesperson_id: user.id });
+      console.log('✅ Clientes carregados:', data.length);
       setCustomers(data);
+      
+      if (data.length === 0) {
+        showNotification({ 
+          message: 'Nenhum cliente cadastrado para este vendedor', 
+          type: 'warning' 
+        });
+      }
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+      console.error('❌ Erro ao carregar clientes:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setError(`Erro ao carregar clientes: ${errorMessage}`);
       showNotification({ message: 'Erro ao carregar clientes', type: 'error' });
+    } finally {
+      setLoadingCustomers(false);
     }
   };
 
   const loadProducts = async () => {
     try {
+      console.log('🔄 Carregando produtos...');
+      setLoadingProducts(true);
       const data = await productService.getAll({ activeOnly: true });
+      console.log('✅ Produtos carregados:', data.length);
       setProducts(data);
     } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
+      console.error('❌ Erro ao carregar produtos:', error);
       showNotification({ message: 'Erro ao carregar produtos', type: 'error' });
+    } finally {
+      setLoadingProducts(false);
     }
   };
 
@@ -107,75 +153,60 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Adicionar produto ao carrinho
-  const addToCart = (product: Product) => {
-    const existingItem = cart.find(item => item.product.id === product.id);
-    
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.product.id === product.id 
-          ? { 
-              ...item, 
-              quantity: item.quantity + 1, 
-              total: (item.quantity + 1) * item.product.price 
-            }
-          : item
-      ));
-    } else {
-      setCart([...cart, {
-        product,
-        quantity: 1,
-        total: product.price
-      }]);
-    }
-    
-    showNotification({ message: `${product.name} adicionado ao carrinho`, type: 'success' });
-  };
-
-  // Remover produto do carrinho
-  const removeFromCart = (productId: number) => {
-    setCart(cart.filter(item => item.product.id !== productId));
-  };
-
-  // Atualizar quantidade
-  const updateQuantity = (productId: number, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-
-    setCart(cart.map(item => 
-      item.product.id === productId 
-        ? { 
-            ...item, 
-            quantity: newQuantity, 
-            total: newQuantity * item.product.price 
-          }
-        : item
-    ));
-  };
-
-  // Calcular total do carrinho
-  const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
-
   // Próximo passo
   const handleNext = () => {
-    if (activeStep === 0 && !selectedCustomer) {
+    console.log('🎯 handleNext chamado - activeStep:', activeStep);
+    console.log('🎯 Cliente selecionado:', cartState.selectedCustomer?.company_name);
+    console.log('🎯 Itens no carrinho:', cartState.items.length);
+    
+    if (activeStep === 0 && !cartState.selectedCustomer) {
+      console.log('❌ Erro: Selecione um cliente');
       showNotification({ message: 'Selecione um cliente', type: 'error' });
       return;
     }
     
-    if (activeStep === 1 && cart.length === 0) {
+    if (activeStep === 1 && cartState.items.length === 0) {
+      console.log('❌ Erro: Adicione produtos ao carrinho');
       showNotification({ message: 'Adicione produtos ao carrinho', type: 'error' });
       return;
     }
 
-    setActiveStep(prevStep => prevStep + 1);
+    const nextStep = activeStep + 1;
+    console.log('✅ Avançando para o passo:', nextStep);
+    setActiveStep(nextStep);
   };
 
   // Passo anterior
   const handleBack = () => {
+    console.log('⬅️ handleBack chamado - activeStep:', activeStep);
     setActiveStep(prevStep => prevStep - 1);
+  };
+
+  // Abrir dialog de cliente
+  const handleOpenCustomerDialog = () => {
+    console.log('🔄 Abrindo dialog de cliente...');
+    console.log('📊 Clientes disponíveis:', customers.length);
+    
+    if (customers.length === 0) {
+      if (loadingCustomers) {
+        showNotification({ message: 'Aguarde o carregamento dos clientes', type: 'info' });
+      } else {
+        showNotification({ message: 'Nenhum cliente disponível', type: 'warning' });
+      }
+      return;
+    }
+
+    setCustomerDialogOpen(true);
+  };
+
+  // Selecionar cliente
+  const handleSelectCustomer = (customer: Customer) => {
+    console.log('✅ Cliente selecionado:', customer.company_name);
+    setCustomer(customer);
+    setCustomerDialogOpen(false);
+    if (activeStep === 0) {
+      setActiveStep(1);
+    }
   };
 
   // Finalizar pedido
@@ -183,19 +214,73 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
     try {
       setLoading(true);
       
-      // Aqui você implementaria a criação do pedido no banco
-      // Por enquanto vamos simular
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Validações básicas
+      if (!cartState.selectedCustomer) {
+        showNotification({ message: 'Cliente não selecionado', type: 'error' });
+        return;
+      }
+
+      if (cartState.items.length === 0) {
+        showNotification({ message: 'Carrinho vazio', type: 'error' });
+        return;
+      }
+
+      if (!user?.id) {
+        showNotification({ message: 'Vendedor não identificado', type: 'error' });
+        return;
+      }
+
+      // Validar estoque dos produtos
+      const stockErrors = cartState.items.filter(item => item.quantity > item.product.stock);
+      if (stockErrors.length > 0) {
+        const errorProducts = stockErrors.map(item => item.product.name).join(', ');
+        showNotification({ 
+          message: `Estoque insuficiente para: ${errorProducts}`, 
+          type: 'error' 
+        });
+        return;
+      }
+
+      console.log('🚀 Iniciando criação do pedido...');
+      
+      // Usar a API real de criação de pedidos
+      const { OrderService } = await import('../../services/orders');
+      
+      const order = await OrderService.createOrder(
+        cartState.selectedCustomer,
+        cartState.items,
+        user.id,
+        cartState.notes || undefined,
+        undefined // payment_method - pode ser implementado depois
+      );
+
+      console.log('✅ Pedido criado com sucesso:', order);
       
       showNotification({ 
-        message: 'Pedido criado com sucesso!', 
+        message: `Pedido #${order.id.slice(-6)} criado com sucesso!`, 
         type: 'success' 
       });
       
+      // Limpar carrinho após sucesso
+      clearCart();
+      
       onOrderCreated?.();
     } catch (error) {
-      console.error('Erro ao criar pedido:', error);
-      showNotification({ message: 'Erro ao criar pedido', type: 'error' });
+      console.error('❌ Erro ao criar pedido:', error);
+      
+      // Tratar diferentes tipos de erro
+      let errorMessage = 'Erro desconhecido ao criar pedido';
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      showNotification({ 
+        message: `Erro ao criar pedido: ${errorMessage}`, 
+        type: 'error' 
+      });
     } finally {
       setLoading(false);
     }
@@ -211,48 +296,92 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
               Selecionar Cliente
             </Typography>
             
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={() => setCustomerDialogOpen(true)}
-              sx={{ mb: 2, p: 2, textAlign: 'left' }}
-            >
-              {selectedCustomer ? (
-                <Box>
-                  <Typography variant="subtitle1">
-                    {selectedCustomer.company_name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {selectedCustomer.contact_phone}
-                  </Typography>
-                </Box>
-              ) : (
-                <Typography>Escolher cliente...</Typography>
-              )}
-            </Button>
+            {/* Erro na tela */}
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+                <Button 
+                  size="small" 
+                  onClick={() => {
+                    setError(null);
+                    loadCustomers();
+                  }}
+                  sx={{ ml: 2 }}
+                >
+                  <RefreshIcon sx={{ mr: 1 }} />
+                  Tentar novamente
+                </Button>
+              </Alert>
+            )}
 
-            {selectedCustomer && (
-              <Card>
+            {/* Cliente selecionado */}
+            {cartState.selectedCustomer ? (
+              <Card sx={{ mb: 2, border: '2px solid #4caf50' }}>
                 <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>
-                    Informações do Cliente
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Empresa:</strong> {selectedCustomer.company_name}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Contato:</strong> {selectedCustomer.contact_name || 'Não informado'}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>Telefone:</strong> {selectedCustomer.contact_phone}
-                  </Typography>
-                  {selectedCustomer.address && (
-                    <Typography variant="body2">
-                      <strong>Endereço:</strong> {selectedCustomer.address}
-                    </Typography>
-                  )}
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#2e7d32' }}>
+                        {cartState.selectedCustomer.company_name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {cartState.selectedCustomer.contact_phone}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {cartState.selectedCustomer.address}
+                      </Typography>
+                    </Box>
+                    <IconButton 
+                      onClick={handleOpenCustomerDialog}
+                      sx={{ color: '#4caf50' }}
+                    >
+                      <EditIcon />
+                    </IconButton>
+                  </Box>
                 </CardContent>
               </Card>
+            ) : (
+              <Button
+                fullWidth
+                variant="outlined"
+                onClick={handleOpenCustomerDialog}
+                sx={{ mb: 2, p: 2, textAlign: 'left' }}
+                disabled={loadingCustomers}
+              >
+                {loadingCustomers ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} />
+                    <Typography>Carregando clientes...</Typography>
+                  </Box>
+                ) : (
+                  <Typography>Escolher cliente...</Typography>
+                )}
+              </Button>
+            )}
+
+            {/* Status dos clientes */}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                {loadingCustomers ? 'Carregando...' : `${customers.length} clientes disponíveis`}
+              </Typography>
+              
+              {!loadingCustomers && (
+                <Button 
+                  size="small" 
+                  onClick={loadCustomers}
+                  startIcon={<RefreshIcon />}
+                >
+                  Atualizar
+                </Button>
+              )}
+            </Box>
+
+            {/* Skeleton loading */}
+            {loadingCustomers && (
+              <Box sx={{ mt: 2 }}>
+                <Skeleton variant="rectangular" width="100%" height={60} sx={{ mb: 1 }} />
+                <Skeleton variant="rectangular" width="100%" height={60} sx={{ mb: 1 }} />
+                <Skeleton variant="rectangular" width="100%" height={60} />
+              </Box>
             )}
           </Box>
         );
@@ -262,9 +391,9 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
           <Box>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="h6">
-                Adicionar Produtos
+                Produtos no Carrinho
               </Typography>
-              <Badge badgeContent={cart.length} color="primary">
+              <Badge badgeContent={cartState.items.length} color="primary">
                 <IconButton 
                   onClick={() => setProductDialogOpen(true)}
                   sx={{ bgcolor: '#990000', color: 'white' }}
@@ -274,7 +403,27 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
               </Badge>
             </Box>
 
-            {cart.length === 0 ? (
+            {/* Botão de teste para ir para revisão */}
+            {cartState.items.length > 0 && (
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => {
+                  console.log('🎯 Botão teste clicado - indo para revisão!');
+                  handleNext();
+                }}
+                sx={{ 
+                  mb: 2,
+                  bgcolor: '#4caf50',
+                  '&:hover': { bgcolor: '#388e3c' },
+                  py: 1.5
+                }}
+              >
+                🚀 IR PARA REVISÃO ({cartState.items.length} itens)
+              </Button>
+            )}
+
+            {cartState.items.length === 0 ? (
               <Card>
                 <CardContent sx={{ textAlign: 'center', py: 4 }}>
                   <CartIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
@@ -293,7 +442,7 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
             ) : (
               <>
                 <List>
-                  {cart.map((item) => (
+                  {cartState.items.map((item) => (
                     <Card key={item.product.id} sx={{ mb: 1 }}>
                       <CardContent sx={{ p: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -306,7 +455,7 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
                             </Typography>
                           </Box>
                           <IconButton 
-                            onClick={() => removeFromCart(item.product.id)}
+                            onClick={() => removeItem(item.product.id)}
                             size="small"
                             sx={{ color: 'error.main' }}
                           >
@@ -346,7 +495,7 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="h6">Total</Typography>
                       <Typography variant="h5" sx={{ color: '#990000', fontWeight: 'bold' }}>
-                        R$ {cartTotal.toFixed(2)}
+                        R$ {cartState.total.toFixed(2)}
                       </Typography>
                     </Box>
                   </CardContent>
@@ -369,9 +518,9 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#990000' }}>
                   Cliente
                 </Typography>
-                <Typography variant="body1">{selectedCustomer?.company_name}</Typography>
+                <Typography variant="body1">{cartState.selectedCustomer?.company_name}</Typography>
                 <Typography variant="body2" color="text.secondary">
-                  {selectedCustomer?.contact_phone}
+                  {cartState.selectedCustomer?.contact_phone}
                 </Typography>
               </CardContent>
             </Card>
@@ -380,9 +529,9 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#990000' }}>
-                  Produtos ({cart.length} itens)
+                  Produtos ({cartState.items.length} itens)
                 </Typography>
-                {cart.map((item) => (
+                {cartState.items.map((item) => (
                   <Box key={item.product.id} sx={{ display: 'flex', justifyContent: 'space-between', py: 1 }}>
                     <Box>
                       <Typography variant="body2">{item.product.name}</Typography>
@@ -396,25 +545,32 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
                   </Box>
                 ))}
                 <Divider sx={{ my: 1 }} />
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <Typography variant="h6">Total</Typography>
-                  <Typography variant="h6" sx={{ color: '#990000' }}>
-                    R$ {cartTotal.toFixed(2)}
+                  <Typography variant="h6" sx={{ color: '#990000', fontWeight: 'bold' }}>
+                    R$ {cartState.total.toFixed(2)}
                   </Typography>
                 </Box>
               </CardContent>
             </Card>
 
             {/* Observações */}
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Observações (opcional)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Adicione observações sobre o pedido..."
-            />
+            <Card>
+              <CardContent>
+                <Typography variant="subtitle2" gutterBottom sx={{ color: '#990000' }}>
+                  Observações
+                </Typography>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={3}
+                  value={cartState.notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Observações sobre o pedido..."
+                  variant="outlined"
+                />
+              </CardContent>
+            </Card>
           </Box>
         );
 
@@ -431,9 +587,51 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
           <ArrowBackIcon />
         </IconButton>
         <Typography variant="h5" component="h1" sx={{ fontWeight: 'bold' }}>
-          Novo Pedido
+          {cartState.items.length > 0 ? 'Continuar Pedido' : 'Novo Pedido'}
         </Typography>
       </Box>
+
+      {/* Indicador de progresso do carrinho */}
+      {cartState.items.length > 0 && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="body2">
+              {cartState.items.length} itens no carrinho
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+              R$ {cartState.total.toFixed(2)}
+            </Typography>
+          </Box>
+        </Alert>
+      )}
+
+      {/* Loading Overlay */}
+      {loading && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            flexDirection: 'column',
+            gap: 2
+          }}
+        >
+          <CircularProgress size={60} sx={{ color: '#4caf50' }} />
+          <Typography variant="h6" sx={{ color: 'white', textAlign: 'center' }}>
+            Criando pedido...
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'white', opacity: 0.8, textAlign: 'center' }}>
+            Aguarde enquanto processamos seu pedido
+          </Typography>
+        </Box>
+      )}
 
       {/* Stepper */}
       <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
@@ -455,30 +653,68 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
         right: 0, 
         p: 2, 
         bgcolor: 'white',
-        borderTop: '1px solid #e0e0e0'
+        borderTop: '1px solid #e0e0e0',
+        zIndex: 1100,
+        boxShadow: '0 -2px 10px rgba(0,0,0,0.1)'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Button
             disabled={activeStep === 0}
             onClick={handleBack}
+            sx={{ 
+              minWidth: '80px',
+              height: '44px',
+              '&:disabled': { 
+                opacity: 0.5 
+              }
+            }}
           >
             Voltar
           </Button>
+          
+          {/* Indicador de progresso */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              {activeStep + 1} de {steps.length}
+            </Typography>
+          </Box>
           
           {activeStep === steps.length - 1 ? (
             <Button
               variant="contained"
               onClick={handleFinishOrder}
               disabled={loading}
-              sx={{ bgcolor: '#990000', '&:hover': { bgcolor: '#660000' } }}
+              sx={{ 
+                bgcolor: '#990000', 
+                '&:hover': { bgcolor: '#660000' },
+                minWidth: '120px',
+                height: '44px'
+              }}
             >
-              {loading ? <CircularProgress size={24} /> : 'Finalizar Pedido'}
+              {loading ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CircularProgress size={20} sx={{ color: 'white' }} />
+                  <Typography variant="body2">Criando...</Typography>
+                </Box>
+              ) : (
+                'Finalizar Pedido'
+              )}
             </Button>
           ) : (
             <Button
               variant="contained"
-              onClick={handleNext}
-              sx={{ bgcolor: '#990000', '&:hover': { bgcolor: '#660000' } }}
+              onClick={() => {
+                console.log('🎯 Botão Próximo clicado!');
+                handleNext();
+              }}
+              sx={{ 
+                bgcolor: '#990000', 
+                '&:hover': { bgcolor: '#660000' },
+                minWidth: '100px',
+                height: '44px',
+                fontSize: '16px',
+                fontWeight: 'bold'
+              }}
             >
               Próximo
             </Button>
@@ -488,25 +724,62 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
 
       {/* Dialog de seleção de cliente */}
       <Dialog open={customerDialogOpen} onClose={() => setCustomerDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Selecionar Cliente</DialogTitle>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Selecionar Cliente</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {customers.length} clientes
+            </Typography>
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <List>
-            {customers.map((customer) => (
-              <ListItem 
-                key={customer.id} 
-                button 
-                onClick={() => {
-                  setSelectedCustomer(customer);
-                  setCustomerDialogOpen(false);
-                }}
-              >
-                <ListItemText
-                  primary={customer.company_name}
-                  secondary={customer.contact_phone}
-                />
-              </ListItem>
-            ))}
-          </List>
+          {customers.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <WarningIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="body1" color="text.secondary">
+                Nenhum cliente cadastrado
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Entre em contato com o administrador para cadastrar clientes
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {customers.map((customer) => (
+                <ListItem 
+                  key={customer.id} 
+                  button 
+                  onClick={() => handleSelectCustomer(customer)}
+                  sx={{ 
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    mb: 1,
+                    '&:hover': { bgcolor: '#f5f5f5' }
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                        {customer.company_name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" color="text.secondary">
+                          📞 {customer.contact_phone}
+                        </Typography>
+                        {customer.address && (
+                          <Typography variant="body2" color="text.secondary">
+                            📍 {customer.address}
+                          </Typography>
+                        )}
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCustomerDialogOpen(false)}>Cancelar</Button>
@@ -531,23 +804,52 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
               ),
             }}
           />
-          <List>
-            {filteredProducts.map((product) => (
-              <ListItem 
-                key={product.id} 
-                button 
-                onClick={() => {
-                  addToCart(product);
-                  setProductDialogOpen(false);
-                }}
-              >
-                <ListItemText
-                  primary={product.name}
-                  secondary={`R$ ${product.price.toFixed(2)} / kg - ${product.category}`}
-                />
-              </ListItem>
-            ))}
-          </List>
+          
+          {loadingProducts ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <CircularProgress />
+              <Typography variant="body2" sx={{ mt: 2 }}>
+                Carregando produtos...
+              </Typography>
+            </Box>
+          ) : (
+            <List>
+              {filteredProducts.map((product) => (
+                <ListItem 
+                  key={product.id} 
+                  button 
+                  onClick={() => {
+                    addItem(product);
+                    setProductDialogOpen(false);
+                  }}
+                  sx={{ 
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 1,
+                    mb: 1,
+                    '&:hover': { bgcolor: '#f5f5f5' }
+                  }}
+                >
+                  <ListItemText
+                    primary={
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                        {product.name}
+                      </Typography>
+                    }
+                    secondary={
+                      <Box>
+                        <Typography variant="body2" sx={{ color: '#990000', fontWeight: 'bold' }}>
+                          R$ {product.price.toFixed(2)} / kg
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {product.category} • Estoque: {product.stock}kg
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setProductDialogOpen(false)}>Fechar</Button>

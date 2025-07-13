@@ -55,6 +55,8 @@ interface AuthProviderProps {
 // Função para converter User do Supabase para AuthUser
 const convertToAuthUser = async (supabaseUser: User): Promise<AuthUser> => {
   try {
+    console.log('🔍 Buscando perfil para usuário:', supabaseUser.email, 'ID:', supabaseUser.id);
+    
     // Buscar o perfil do usuário na tabela user_profiles
     const { data: userProfile, error } = await supabase
       .from('user_profiles')
@@ -64,23 +66,31 @@ const convertToAuthUser = async (supabaseUser: User): Promise<AuthUser> => {
     
     if (error) {
       console.warn('⚠️ Erro ao buscar perfil do usuário:', error.message);
+      console.warn('📊 Detalhes do erro:', error);
       console.log('📝 Usando role padrão: vendedor');
+    } else {
+      console.log('✅ Perfil encontrado:', userProfile);
     }
     
-    return {
+    const authUser = {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
       name: userProfile?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
       role: userProfile?.role || 'vendedor' // Usa o role da tabela ou padrão
     };
+    
+    console.log('👤 Usuário convertido:', authUser);
+    return authUser;
   } catch (error) {
-    console.error('❌ Erro ao converter usuário:', error);
-    return {
+    console.error('❌ Erro crítico ao converter usuário:', error);
+    const fallbackUser = {
       id: supabaseUser.id,
       email: supabaseUser.email || '',
       name: supabaseUser.email?.split('@')[0] || 'Usuário',
-      role: 'vendedor' // Fallback para vendedor
+      role: 'vendedor' as const // Fallback para vendedor
     };
+    console.log('🔄 Usando usuário fallback:', fallbackUser);
+    return fallbackUser;
   }
 };
 
@@ -167,11 +177,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Função para obter sessão atual
     const getSession = async () => {
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('📡 Buscando sessão atual...');
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
         
+        if (sessionError) {
+          console.error('❌ Erro ao buscar sessão:', sessionError);
+          throw sessionError;
+        }
+        
+        console.log('📋 Sessão obtida:', currentSession ? 'Ativa' : 'Inativa');
         setSession(currentSession);
         
         if (currentSession?.user) {
+          console.log('👤 Convertendo usuário...');
           const authUser = await convertToAuthUser(currentSession.user);
           setUser(authUser);
           console.log('✅ Usuário logado:', authUser.email, 'Role:', authUser.role);

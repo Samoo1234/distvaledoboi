@@ -33,6 +33,7 @@ import {
 } from '@mui/icons-material';
 import { OrderService, Order, OrderStats } from '../../../services/orders';
 import { useNotification } from '../../shared/Notification';
+import { generateOrderPDF } from '../../../utils/pdfGenerator';
 
 /**
  * Dashboard para equipe de separação
@@ -40,84 +41,140 @@ import { useNotification } from '../../shared/Notification';
 const SeparacaoDashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<OrderStats>({
+    total: 0,
     pending: 0,
     processing: 0,
     completed: 0,
     cancelled: 0,
-    total: 0,
     totalValue: 0
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
   const { showNotification } = useNotification();
 
-  // Carregar dados ao montar o componente
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  // Carregar dados
   const loadData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      
-      // Carregar pedidos e estatísticas em paralelo
       const [ordersData, statsData] = await Promise.all([
         OrderService.getOrdersForSeparation(),
         OrderService.getOrderStats()
       ]);
-
+      
       setOrders(ordersData);
       setStats(statsData);
-    } catch (err) {
-      console.error('Erro ao carregar dados:', err);
-      setError('Erro ao carregar dados. Tente novamente.');
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      showNotification({ message: 'Erro ao carregar dados', type: 'error' });
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Visualizar pedido
+  const handleViewOrder = (order: Order) => {
+    setSelectedOrder(order);
+    setDialogOpen(true);
+  };
+
+  // Fechar dialog
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setSelectedOrder(null);
+  };
+
+  // Gerar PDF do pedido
+  const handleGeneratePDF = async () => {
+    if (!selectedOrder) return;
+    
+    try {
+      setPdfLoading(true);
+      showNotification({ message: 'Buscando detalhes do pedido...', type: 'info' });
+      
+      // Buscar pedido completo com itens
+      const orderWithItems = await OrderService.getOrderById(selectedOrder.id);
+      
+      if (!orderWithItems) {
+        showNotification({ message: 'Pedido não encontrado', type: 'error' });
+        return;
+      }
+      
+      // Verificar se tem itens antes de gerar PDF
+      const pdfOrder = {
+        ...orderWithItems,
+        items: orderWithItems.items || []
+      };
+      
+      // Gerar PDF
+      await generateOrderPDF(pdfOrder);
+      
+      showNotification({ 
+        message: `PDF do pedido #${selectedOrder.id.substring(0, 8)} gerado com sucesso!`, 
+        type: 'success' 
+      });
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      showNotification({ 
+        message: 'Erro ao gerar PDF do pedido', 
+        type: 'error' 
+      });
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  // Iniciar separação
   const handleStartSeparation = async (orderId: string) => {
     try {
       setActionLoading(true);
       await OrderService.startSeparation(orderId);
       showNotification({ message: 'Separação iniciada com sucesso!', type: 'success' });
       loadData(); // Recarregar dados
-    } catch (err) {
-      console.error('Erro ao iniciar separação:', err);
+    } catch (error) {
+      console.error('Erro ao iniciar separação:', error);
       showNotification({ message: 'Erro ao iniciar separação', type: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
+  // Concluir separação
   const handleCompleteSeparation = async (orderId: string) => {
     try {
       setActionLoading(true);
       await OrderService.completeSeparation(orderId);
       showNotification({ message: 'Separação concluída com sucesso!', type: 'success' });
       loadData(); // Recarregar dados
-    } catch (err) {
-      console.error('Erro ao concluir separação:', err);
+    } catch (error) {
+      console.error('Erro ao concluir separação:', error);
       showNotification({ message: 'Erro ao concluir separação', type: 'error' });
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleViewOrder = (order: Order) => {
-    setSelectedOrder(order);
-    setDialogOpen(true);
+  // Renderizar status
+  const renderStatus = (status: string) => {
+    const statusConfig = {
+      pending: { label: 'Pendente', color: 'warning' as const },
+      processing: { label: 'Em Separação', color: 'info' as const },
+      completed: { label: 'Concluído', color: 'success' as const },
+      cancelled: { label: 'Cancelado', color: 'error' as const }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || { label: status, color: 'default' as const };
+    return <Chip label={config.label} color={config.color} size="small" />;
   };
 
-  const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setSelectedOrder(null);
-  };
-
+  // Formatar moeda
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -125,187 +182,148 @@ const SeparacaoDashboard: React.FC = () => {
     }).format(value);
   };
 
+  // Formatar data
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('pt-BR');
-  };
-
-  // Função auxiliar para renderizar o status dos pedidos
-  const renderStatus = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return <Chip 
-          icon={<AccessTimeIcon />} 
-          label="Pendente" 
-          color="warning" 
-          size="small" 
-          variant="outlined"
-        />;
-      case 'processing':
-        return <Chip 
-          icon={<AccessTimeIcon />} 
-          label="Separando" 
-          color="info" 
-          size="small"
-          variant="outlined" 
-        />;
-      case 'completed':
-        return <Chip 
-          icon={<CheckCircleIcon />} 
-          label="Pronto" 
-          color="success" 
-          size="small"
-          variant="outlined" 
-        />;
-      case 'cancelled':
-        return <Chip 
-          icon={<CancelIcon />} 
-          label="Cancelado" 
-          color="error" 
-          size="small"
-          variant="outlined" 
-        />;
-      default:
-        return <Chip 
-          label="Desconhecido" 
-          size="small" 
-        />;
-    }
+    return new Date(dateString).toLocaleDateString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
       </Box>
     );
   }
 
-  if (error) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-        <Button 
-          variant="contained" 
-          onClick={loadData}
-          startIcon={<RefreshIcon />}
-        >
-          Tentar Novamente
-        </Button>
-      </Box>
-    );
-  }
-
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
+      {/* Cabeçalho */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold' }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: 'bold', color: '#333' }}>
           Dashboard de Separação
         </Typography>
-        <Button 
-          variant="outlined" 
-          onClick={loadData}
+        <Button
+          variant="outlined"
           startIcon={<RefreshIcon />}
+          onClick={loadData}
+          disabled={loading}
+          sx={{ borderColor: '#990000', color: '#990000', '&:hover': { borderColor: '#660000' } }}
         >
           Atualizar
         </Button>
       </Box>
 
-      {/* Cards de Estatísticas */}
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      {/* Cards de estatísticas */}
+      <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: 4, borderColor: 'warning.main' }}>
+          <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Pedidos Pendentes
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                {stats.pending}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Aguardando separação
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#ff9800' }}>
+                    {stats.pending}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Aguardando
+                  </Typography>
+                </Box>
+                <AccessTimeIcon sx={{ fontSize: 40, color: '#ff9800' }} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: 4, borderColor: 'info.main' }}>
+          <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Em Separação
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                {stats.processing}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Em processamento
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#2196f3' }}>
+                    {stats.processing}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Em Processamento
+                  </Typography>
+                </Box>
+                <PlayArrowIcon sx={{ fontSize: 40, color: '#2196f3' }} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: 4, borderColor: 'success.main' }}>
+          <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Prontos para Entrega
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                {stats.completed}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Separação concluída
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#4caf50' }}>
+                    {stats.completed}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Separação Concluída
+                  </Typography>
+                </Box>
+                <CheckCircleIcon sx={{ fontSize: 40, color: '#4caf50' }} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>
+
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderLeft: 4, borderColor: 'error.main' }}>
+          <Card>
             <CardContent>
-              <Typography color="text.secondary" gutterBottom>
-                Total de Pedidos
-              </Typography>
-              <Typography variant="h4" component="div" sx={{ fontWeight: 'bold' }}>
-                {stats.total}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Todos os pedidos
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#990000' }}>
+                    {formatCurrency(stats.totalValue)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Valor Total
+                  </Typography>
+                </Box>
+                <PlayArrowIcon sx={{ fontSize: 40, color: '#990000' }} />
+              </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      {/* Tabela de Pedidos */}
+      {/* Tabela de pedidos */}
       <Card>
         <CardContent>
-          <Typography variant="h6" gutterBottom sx={{ color: 'error.main', fontWeight: 'bold' }}>
+          <Typography variant="h6" sx={{ mb: 2, color: '#990000' }}>
             Pedidos para Separação
           </Typography>
           
           {orders.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-              Nenhum pedido encontrado
-            </Typography>
+            <Alert severity="info">
+              Nenhum pedido aguardando separação no momento.
+            </Alert>
           ) : (
-            <TableContainer component={Paper} variant="outlined">
+            <TableContainer component={Paper}>
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>Pedido</strong></TableCell>
-                    <TableCell><strong>Cliente</strong></TableCell>
-                    <TableCell><strong>Valor Total</strong></TableCell>
-                    <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Criado</strong></TableCell>
-                    <TableCell><strong>Ações</strong></TableCell>
+                    <TableCell>Pedido</TableCell>
+                    <TableCell>Cliente</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Valor</TableCell>
+                    <TableCell>Data</TableCell>
+                    <TableCell>Ações</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {orders.map((order) => (
-                    <TableRow key={order.id} hover>
+                    <TableRow key={order.id}>
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                          #{order.id.slice(0, 8)}
+                          #{order.id.substring(0, 8)}
                         </Typography>
                       </TableCell>
                       <TableCell>
@@ -317,12 +335,12 @@ const SeparacaoDashboard: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>
+                        {renderStatus(order.status)}
+                      </TableCell>
+                      <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                           {formatCurrency(order.total_amount)}
                         </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {renderStatus(order.status)}
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
@@ -444,10 +462,16 @@ const SeparacaoDashboard: React.FC = () => {
           </Button>
           <Button 
             variant="contained" 
-            startIcon={<PrintIcon />}
-            onClick={() => window.print()}
+            startIcon={pdfLoading ? <CircularProgress size={20} /> : <PrintIcon />}
+            onClick={handleGeneratePDF}
+            disabled={pdfLoading}
+            sx={{ 
+              bgcolor: '#990000', 
+              '&:hover': { bgcolor: '#660000' },
+              '&:disabled': { bgcolor: '#ccc' }
+            }}
           >
-            Imprimir
+            {pdfLoading ? 'Gerando PDF...' : 'Gerar PDF'}
           </Button>
         </DialogActions>
       </Dialog>

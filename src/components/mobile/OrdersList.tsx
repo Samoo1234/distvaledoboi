@@ -45,13 +45,20 @@ interface OrdersListProps {
  */
 const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(false); // Mudado para false - não carrega automaticamente
+  const [loading, setLoading] = useState(true); // Mudado para true - carrega automaticamente
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const { showNotification } = useNotification();
   const { user } = useAuth();
+
+  // Carregar pedidos automaticamente
+  useEffect(() => {
+    if (user?.id) {
+      loadOrders();
+    }
+  }, [user?.id]);
 
   // Carregar pedidos
   const loadOrders = async () => {
@@ -89,29 +96,12 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
         errorMessage = `Erro: ${error.message}`;
       }
       
-      // Não mostrar notificação de erro por enquanto, só no console
-      console.error('❌ Erro ao carregar pedidos - não mostrando notificação');
-      // showNotification({ message: errorMessage, type: 'error' });
+      showNotification({ message: errorMessage, type: 'error' });
       
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    // Desabilitado temporariamente o carregamento automático para evitar erros
-    // O usuário pode carregar manualmente clicando no botão de atualizar
-    console.log('ℹ️ OrdersList useEffect: Carregamento automático desabilitado');
-    console.log('👤 User ID disponível:', user?.id);
-    console.log('🔄 Use o botão de atualizar para carregar pedidos manualmente');
-    
-    // if (user?.id) {
-    //   console.log('🔄 OrdersList useEffect: Carregando pedidos para user:', user.id);
-    //   loadOrders();
-    // } else {
-    //   console.log('⚠️ OrdersList useEffect: Aguardando usuário...');
-    // }
-  }, [user?.id]);
 
   // Filtrar pedidos
   const filteredOrders = orders.filter(order => {
@@ -201,14 +191,7 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
         </Box>
 
         {/* Mensagem de sucesso quando vem de pedido criado */}
-        <Alert severity="success" sx={{ mb: 2 }}>
-          <Typography variant="body2">
-            🎉 Você foi redirecionado após criar um pedido com sucesso!
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            Clique no botão de atualizar (🔄) para carregar seus pedidos.
-          </Typography>
-        </Alert>
+        {/* Removido: Alert não é necessário aqui */}
         
         {/* Cards de estatísticas */}
         <Grid container spacing={2} sx={{ mb: 2 }}>

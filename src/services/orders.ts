@@ -81,8 +81,7 @@ export class OrderService {
         .from('orders')
         .select(`
           *,
-          customer:customers(company_name, contact_name, contact_phone, address),
-          salesperson:user_profiles(name)
+          customer:customers(company_name, contact_name, contact_phone, address)
         `)
         .order('created_at', { ascending: false });
 
@@ -131,8 +130,7 @@ export class OrderService {
         .from('orders')
         .select(`
           *,
-          customer:customers(company_name, contact_name, contact_phone, address),
-          salesperson:user_profiles(name)
+          customer:customers(company_name, contact_name, contact_phone, address)
         `)
         .in('status', ['pending', 'processing'])
         .order('created_at', { ascending: false });
@@ -159,8 +157,7 @@ export class OrderService {
         .from('orders')
         .select(`
           *,
-          customer:customers(company_name, contact_name, contact_phone, address),
-          salesperson:user_profiles(name)
+          customer:customers(company_name, contact_name, contact_phone, address)
         `)
         .eq('id', id)
         .single();

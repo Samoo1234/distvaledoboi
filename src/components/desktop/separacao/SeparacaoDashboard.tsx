@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -25,7 +25,6 @@ import {
 import {
   Print as PrintIcon,
   Visibility as VisibilityIcon,
-  Cancel as CancelIcon,
   CheckCircle as CheckCircleIcon,
   AccessTime as AccessTimeIcon,
   PlayArrow as PlayArrowIcon,
@@ -56,7 +55,7 @@ const SeparacaoDashboard: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar dados
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [ordersData, statsData] = await Promise.all([
@@ -72,11 +71,11 @@ const SeparacaoDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Visualizar pedido
   const handleViewOrder = (order: Order) => {

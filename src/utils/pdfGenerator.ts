@@ -20,7 +20,6 @@ export const generateOrderPDF = async (order: PDFOrderData): Promise<void> => {
   // Cores
   const primaryColor = '#990000';
   const secondaryColor = '#333333';
-  const lightGray = '#f5f5f5';
   
   // CABEÇALHO DA EMPRESA
   doc.setFillColor(primaryColor);
@@ -209,4 +208,6 @@ const getStatusText = (status: string): string => {
   }
 };
 
-export default { generateOrderPDF }; 
+// Export default corrigido
+const pdfGenerator = { generateOrderPDF };
+export default pdfGenerator; 

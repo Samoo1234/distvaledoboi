@@ -1,36 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
-  List,
-  ListItem,
-  ListItemText,
+  Button,
+  IconButton,
   CircularProgress,
   TextField,
   InputAdornment,
-  Grid,
-  Chip,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Divider,
-  Alert,
-  IconButton
+  Grid
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  AttachMoney as MoneyIcon,
-  Visibility as VisibilityIcon,
   Add as AddIcon,
-  Refresh as RefreshIcon
+  Refresh as RefreshIcon,
+  Visibility as VisibilityIcon,
+  AttachMoney as MoneyIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../services/orders';
 import { useNotification } from '../shared/Notification';
@@ -53,15 +48,8 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
   const { showNotification } = useNotification();
   const { user } = useAuth();
 
-  // Carregar pedidos automaticamente
-  useEffect(() => {
-    if (user?.id) {
-      loadOrders();
-    }
-  }, [user?.id]);
-
   // Carregar pedidos
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       console.log('🔄 OrdersList: Carregando pedidos...');
       console.log('👤 User ID:', user?.id);
@@ -101,7 +89,14 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id, showNotification]);
+
+  // Carregar pedidos automaticamente
+  useEffect(() => {
+    if (user?.id) {
+      loadOrders();
+    }
+  }, [user?.id, loadOrders]);
 
   // Filtrar pedidos
   const filteredOrders = orders.filter(order => {
@@ -190,9 +185,6 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
           </Box>
         </Box>
 
-        {/* Mensagem de sucesso quando vem de pedido criado */}
-        {/* Removido: Alert não é necessário aqui */}
-        
         {/* Cards de estatísticas */}
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={6}>
@@ -290,48 +282,46 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
           </CardContent>
         </Card>
       ) : (
-        <List sx={{ px: 0 }}>
-          {filteredOrders.map((order, index) => (
-            <React.Fragment key={order.id}>
-              <Card sx={{ mb: 1 }}>
-                <CardContent sx={{ p: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                        {order.customer?.company_name || 'Cliente não informado'}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Pedido #{order.id.substring(0, 8)}
-                      </Typography>
-                    </Box>
-                    <Chip 
-                      label={getStatusText(order.status)} 
-                      color={getStatusColor(order.status) as any}
-                      size="small" 
-                    />
+        <Box sx={{ px: 0 }}>
+          {filteredOrders.map((order) => (
+            <Card key={order.id} sx={{ mb: 1 }}>
+              <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      {order.customer?.company_name || 'Cliente não informado'}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Pedido #{order.id.substring(0, 8)}
+                    </Typography>
                   </Box>
-                  
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
-                    <Box>
-                      <Typography variant="h6" sx={{ color: '#990000', fontWeight: 'bold' }}>
-                        R$ {order.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatDate(order.created_at)}
-                      </Typography>
-                    </Box>
-                    <IconButton 
-                      onClick={() => handleViewOrder(order)}
-                      sx={{ color: '#990000' }}
-                    >
-                      <VisibilityIcon />
-                    </IconButton>
+                  <Chip 
+                    label={getStatusText(order.status)} 
+                    color={getStatusColor(order.status) as any}
+                    size="small" 
+                  />
+                </Box>
+                
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ color: '#990000', fontWeight: 'bold' }}>
+                      R$ {order.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {formatDate(order.created_at)}
+                    </Typography>
                   </Box>
-                </CardContent>
-              </Card>
-            </React.Fragment>
+                  <IconButton 
+                    onClick={() => handleViewOrder(order)}
+                    sx={{ color: '#990000' }}
+                  >
+                    <VisibilityIcon />
+                  </IconButton>
+                </Box>
+              </CardContent>
+            </Card>
           ))}
-        </List>
+        </Box>
       )}
 
       {/* Dialog de detalhes do pedido */}
@@ -353,8 +343,6 @@ const OrdersList: React.FC<OrdersListProps> = ({ onNewOrder }) => {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 Pedido #{selectedOrder.id.substring(0, 8)}
               </Typography>
-              
-              <Divider sx={{ my: 2 }} />
               
               <Typography variant="subtitle2" gutterBottom>
                 Status: <Chip 

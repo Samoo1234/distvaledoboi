@@ -53,13 +53,35 @@ interface AuthProviderProps {
 }
 
 // Função para converter User do Supabase para AuthUser
-const convertToAuthUser = (supabaseUser: User): AuthUser => {
-  return {
-    id: supabaseUser.id,
-    email: supabaseUser.email || '',
-    name: supabaseUser.email?.split('@')[0] || 'Usuário',
-    role: 'vendedor' // Padrão para todos
-  };
+const convertToAuthUser = async (supabaseUser: User): Promise<AuthUser> => {
+  try {
+    // Buscar o perfil do usuário na tabela user_profiles
+    const { data: userProfile, error } = await supabase
+      .from('user_profiles')
+      .select('role, name')
+      .eq('id', supabaseUser.id)
+      .single();
+    
+    if (error) {
+      console.warn('⚠️ Erro ao buscar perfil do usuário:', error.message);
+      console.log('📝 Usando role padrão: vendedor');
+    }
+    
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name: userProfile?.name || supabaseUser.email?.split('@')[0] || 'Usuário',
+      role: userProfile?.role || 'vendedor' // Usa o role da tabela ou padrão
+    };
+  } catch (error) {
+    console.error('❌ Erro ao converter usuário:', error);
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || '',
+      name: supabaseUser.email?.split('@')[0] || 'Usuário',
+      role: 'vendedor' // Fallback para vendedor
+    };
+  }
 };
 
 // Provedor de autenticação - SIMPLIFICADO
@@ -150,9 +172,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(currentSession);
         
         if (currentSession?.user) {
-          const authUser = convertToAuthUser(currentSession.user);
+          const authUser = await convertToAuthUser(currentSession.user);
           setUser(authUser);
-          console.log('✅ Usuário logado:', authUser.email);
+          console.log('✅ Usuário logado:', authUser.email, 'Role:', authUser.role);
         } else {
           setUser(null);
           console.log('❌ Nenhuma sessão ativa');
@@ -177,9 +199,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          const authUser = convertToAuthUser(session.user);
+          const authUser = await convertToAuthUser(session.user);
           setUser(authUser);
-          console.log('✅ Login detectado:', authUser.email);
+          console.log('✅ Login detectado:', authUser.email, 'Role:', authUser.role);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
           console.log('🚪 Logout detectado');

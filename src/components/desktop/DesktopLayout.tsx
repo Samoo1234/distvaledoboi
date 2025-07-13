@@ -9,14 +9,20 @@ import {
   ListItem, 
   ListItemButton, 
   ListItemIcon, 
-  ListItemText,
-  Divider,
-  IconButton,
-  Avatar,
+  ListItemText, 
+  IconButton, 
+  Avatar, 
+  Menu, 
+  MenuItem, 
+  Divider, 
   Badge,
-  Menu,
-  MenuItem,
-  Container
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -36,7 +42,9 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
+import { useNotification } from '../shared/Notification';
 import LoadingScreen from '../shared/LoadingScreen';
+import { Container } from '@mui/material';
 import SeparacaoDashboard from './separacao/SeparacaoDashboard';
 import OrdersSeparacao from './separacao/OrdersSeparacao';
 import ShippingSeparacao from './separacao/ShippingSeparacao';
@@ -62,9 +70,11 @@ interface DesktopLayoutProps {
 const DesktopLayout: React.FC<DesktopLayoutProps> = ({ type }) => {
   const { user, loading, signOut } = useAuth();
   const { isOnline } = useOffline();
+  const { showNotification } = useNotification();
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -76,7 +86,27 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({ type }) => {
 
   const handleLogout = async () => {
     handleProfileMenuClose();
-    await signOut();
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setShowLogoutDialog(false);
+      await signOut();
+      showNotification({
+        message: 'Logout realizado com sucesso!',
+        type: 'success'
+      });
+    } catch (error) {
+      showNotification({
+        message: 'Erro ao fazer logout. Tente novamente.',
+        type: 'error'
+      });
+    }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutDialog(false);
   };
 
   const toggleDrawer = () => {
@@ -372,6 +402,31 @@ const DesktopLayout: React.FC<DesktopLayoutProps> = ({ type }) => {
           {renderContent()}
         </Container>
       </Box>
+
+      {/* Dialog de confirmação de logout */}
+      <Dialog
+        open={showLogoutDialog}
+        onClose={cancelLogout}
+        aria-labelledby="logout-dialog-title"
+        aria-describedby="logout-dialog-description"
+      >
+        <DialogTitle id="logout-dialog-title">
+          Confirmar Logout
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="logout-dialog-description">
+            Tem certeza que deseja sair do sistema? Todos os dados não salvos serão perdidos.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelLogout} color="primary">
+            Cancelar
+          </Button>
+          <Button onClick={confirmLogout} color="error" variant="contained">
+            Sair
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

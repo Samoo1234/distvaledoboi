@@ -15,7 +15,13 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  Fab
+  Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -29,6 +35,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOffline } from '../../hooks/useOffline';
+import { useNotification } from '../shared/Notification';
 import MobileHome from './MobileHome';
 import OrdersList from './OrdersList';
 import MobileClientsList from './MobileClientsList';
@@ -42,9 +49,11 @@ import LoadingScreen from '../shared/LoadingScreen';
 const MobileLayout: React.FC = () => {
   const { user, loading, signOut } = useAuth();
   const { isOnline } = useOffline();
+  const { showNotification } = useNotification();
   const [activeTab, setActiveTab] = useState(0);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
   const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -56,7 +65,27 @@ const MobileLayout: React.FC = () => {
 
   const handleLogout = async () => {
     handleProfileMenuClose();
-    await signOut();
+    setShowLogoutDialog(true);
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setShowLogoutDialog(false);
+      await signOut();
+      showNotification({
+        message: 'Logout realizado com sucesso!',
+        type: 'success'
+      });
+    } catch (error) {
+      showNotification({
+        message: 'Erro ao fazer logout. Tente novamente.',
+        type: 'error'
+      });
+    }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutDialog(false);
   };
 
   // Função para iniciar novo pedido
@@ -253,6 +282,31 @@ const MobileLayout: React.FC = () => {
           <BottomNavigationAction label="Vendas" icon={<SalesIcon />} />
         </BottomNavigation>
       </Paper>
+
+      {/* Dialog de confirmação de logout */}
+      <Dialog
+        open={showLogoutDialog}
+        onClose={cancelLogout}
+        aria-labelledby="logout-dialog-title"
+        aria-describedby="logout-dialog-description"
+      >
+        <DialogTitle id="logout-dialog-title">
+          Confirmar Logout
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="logout-dialog-description">
+            Tem certeza que deseja sair do sistema? Todos os dados não salvos serão perdidos.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelLogout} color="primary">
+            Cancelar
+          </Button>
+          <Button onClick={confirmLogout} color="error" variant="contained">
+            Sair
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

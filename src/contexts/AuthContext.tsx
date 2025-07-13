@@ -92,18 +92,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  // Função para fazer logout - SIMPLIFICADA
+  // Função para fazer logout - MELHORADA
   const signOut = async (): Promise<void> => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      console.log('🚪 Iniciando logout...');
       
+      // Limpar dados locais primeiro
       setUser(null);
       setSession(null);
-      navigate('/login');
-      console.log('✅ Logout realizado');
+      
+      // Limpar localStorage (carrinho, dados offline, etc.)
+      try {
+        localStorage.removeItem('cart');
+        localStorage.removeItem('offline_orders');
+        localStorage.removeItem('offline_customers');
+        localStorage.removeItem('offline_products');
+        console.log('🧹 Dados locais limpos');
+      } catch (localStorageError) {
+        console.warn('⚠️ Erro ao limpar localStorage:', localStorageError);
+      }
+      
+      // Fazer logout no Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Erro no logout do Supabase:', error.message);
+        // Mesmo com erro no Supabase, continua o logout local
+      }
+      
+      // Navegar para login
+      navigate('/login', { replace: true });
+      console.log('✅ Logout realizado com sucesso');
+      
     } catch (error) {
-      console.error('❌ Erro ao fazer logout:', error);
+      console.error('💥 Erro crítico no logout:', error);
+      // Em caso de erro crítico, força logout local
+      setUser(null);
+      setSession(null);
+      navigate('/login', { replace: true });
     }
   };
 

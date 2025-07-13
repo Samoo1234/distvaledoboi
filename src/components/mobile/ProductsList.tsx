@@ -36,7 +36,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const { addItem, getItemQuantity } = useCart();
+  const { addItem, getItemQuantity, state } = useCart();
 
   // Carregar produtos
   useEffect(() => {
@@ -218,7 +218,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
         }}
         onClick={() => {/* Navegar para carrinho */}}
       >
-        <Badge badgeContent={getItemQuantity('total')} color="error">
+        <Badge badgeContent={state.itemCount} color="error">
           <CartIcon />
         </Badge>
       </Fab>
@@ -226,4 +226,4 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
   );
 };
 
-export default ProductsList; 
+export default ProductsList;

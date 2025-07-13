@@ -73,13 +73,7 @@ const MobileLayout: React.FC = () => {
     // Se estiver criando novo pedido, mostra o componente específico
     if (showNewOrder) {
       return (
-        <NewOrder
-          onBack={() => setShowNewOrder(false)}
-          onOrderCreated={() => {
-            setShowNewOrder(false);
-            setActiveTab(1); // Vai para aba de pedidos
-          }}
-        />
+        <NewOrder />
       );
     }
 

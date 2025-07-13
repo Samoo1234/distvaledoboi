@@ -24,7 +24,6 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-  Divider,
   CircularProgress,
   Tabs,
   Tab,

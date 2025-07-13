@@ -31,9 +31,11 @@ import { OrderService } from '../../services/orders';
 
 interface MobileHomeProps {
   onNewOrder: () => void;
+  onNavigateToClients: () => void;
+  onNavigateToSales: () => void;
 }
 
-const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
+const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder, onNavigateToClients, onNavigateToSales }) => {
   const { user } = useAuth();
   const { state: cartState } = useCart();
 
@@ -92,17 +94,20 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
       {/* Botões Secundários - Layout Limpo */}
       <Stack spacing={2}>
         {/* MEUS CLIENTES */}
-        <Card sx={{ 
-          cursor: 'pointer',
-          bgcolor: 'white',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          borderRadius: 2,
-          '&:hover': { 
-            transform: 'translateY(-1px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-          },
-          transition: 'all 0.2s ease'
-        }}>
+        <Card 
+          onClick={onNavigateToClients}
+          sx={{ 
+            cursor: 'pointer',
+            bgcolor: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            borderRadius: 2,
+            '&:hover': { 
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
             <PeopleIcon sx={{ fontSize: 40, color: '#666', mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', mb: 0.5 }}>
@@ -115,17 +120,20 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
         </Card>
 
         {/* MINHAS VENDAS */}
-        <Card sx={{ 
-          cursor: 'pointer',
-          bgcolor: 'white',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          borderRadius: 2,
-          '&:hover': { 
-            transform: 'translateY(-1px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-          },
-          transition: 'all 0.2s ease'
-        }}>
+        <Card 
+          onClick={onNavigateToSales}
+          sx={{ 
+            cursor: 'pointer',
+            bgcolor: 'white',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            borderRadius: 2,
+            '&:hover': { 
+              transform: 'translateY(-1px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
           <CardContent sx={{ textAlign: 'center', py: 3 }}>
             <TrendingUpIcon sx={{ fontSize: 40, color: '#666', mb: 1 }} />
             <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', mb: 0.5 }}>

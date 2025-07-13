@@ -85,7 +85,13 @@ const MobileLayout: React.FC = () => {
 
     switch (activeTab) {
       case 0:
-        return <MobileHome onNewOrder={() => setShowNewOrder(true)} />;
+        return (
+          <MobileHome 
+            onNewOrder={() => setShowNewOrder(true)}
+            onNavigateToClients={() => setActiveTab(2)}
+            onNavigateToSales={() => setActiveTab(3)}
+          />
+        );
       case 1:
         return (
           <OrdersList
@@ -97,7 +103,13 @@ const MobileLayout: React.FC = () => {
       case 3:
         return <MobileSales />;
       default:
-        return <MobileHome onNewOrder={() => setShowNewOrder(true)} />;
+        return (
+          <MobileHome 
+            onNewOrder={() => setShowNewOrder(true)}
+            onNavigateToClients={() => setActiveTab(2)}
+            onNavigateToSales={() => setActiveTab(3)}
+          />
+        );
     }
   };
 

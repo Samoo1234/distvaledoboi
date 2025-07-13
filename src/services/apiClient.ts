@@ -88,6 +88,24 @@ class ApiClient {
   }
 
   /**
+   * Requisição PATCH
+   */
+  async patch<T>(endpoint: string, data: any): Promise<T> {
+    const headers = await this.getHeaders();
+    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${await response.text()}`);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  /**
    * Requisição DELETE
    */
   async delete<T>(endpoint: string): Promise<T> {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Session, 
@@ -7,7 +7,6 @@ import {
   AuthResponse
 } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
-import { useNotification } from '../components/shared/Notification';
 
 // Interface para credenciais de login
 interface LoginCredentials {
@@ -15,13 +14,12 @@ interface LoginCredentials {
   password: string;
 }
 
-// Interface para o usuário autenticado
+// Interface para o usuário autenticado - SIMPLIFICADA
 interface AuthUser {
   id: string;
   email: string;
   name: string;
-  role: 'vendedor' | 'separacao' | 'admin';
-  avatar_url?: string;
+  role: 'vendedor' | 'separacao' | 'admin'; // Padrão vendedor
 }
 
 // Interface para o contexto de autenticação
@@ -54,54 +52,58 @@ interface AuthProviderProps {
   children: React.ReactNode;
 }
 
-// Provedor de autenticação
+// Função para converter User do Supabase para AuthUser
+const convertToAuthUser = (supabaseUser: User): AuthUser => {
+  return {
+    id: supabaseUser.id,
+    email: supabaseUser.email || '',
+    name: supabaseUser.email?.split('@')[0] || 'Usuário',
+    role: 'vendedor' // Padrão para todos
+  };
+};
+
+// Provedor de autenticação - SIMPLIFICADO
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const navigate = useNavigate();
-  const { showNotification } = useNotification();
 
-  // Função para fazer login
+  // Função para fazer login - SIMPLIFICADA
   const signIn = async (credentials: LoginCredentials): Promise<AuthResponse> => {
     try {
-      console.log('📡 AuthContext: signIn chamado com email:', credentials.email);
+      console.log('🔐 Fazendo login...');
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email: credentials.email,
         password: credentials.password
       });
       
-      console.log('📨 AuthContext: Resposta do signInWithPassword:', { hasData: !!data, error });
+      if (error) {
+        console.error('❌ Erro no login:', error.message);
+        throw error;
+      }
       
-      if (error) throw error;
-      
-      console.log('✅ AuthContext: signIn bem-sucedido, retornando dados');
+      console.log('✅ Login realizado com sucesso!');
       return { data, error };
     } catch (error) {
-      console.error('💥 AuthContext: Erro ao fazer login:', error);
-      showNotification({ 
-        message: (error as AuthError).message || 'Erro ao fazer login', 
-        type: 'error' 
-      });
+      console.error('💥 Erro ao fazer login:', error);
       throw error;
     }
   };
 
-  // Função para fazer logout
+  // Função para fazer logout - SIMPLIFICADA
   const signOut = async (): Promise<void> => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // Redireciona para login após logout
+      setUser(null);
+      setSession(null);
       navigate('/login');
+      console.log('✅ Logout realizado');
     } catch (error) {
-      console.error('Erro ao fazer logout:', error);
-      showNotification({ 
-        message: 'Erro ao fazer logout', 
-        type: 'error' 
-      });
+      console.error('❌ Erro ao fazer logout:', error);
     }
   };
 
@@ -111,49 +113,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return allowedRoles.includes(user.role);
   };
 
-  // Função auxiliar para buscar perfil do usuário
-  const fetchUserProfile = useCallback(async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        console.error('Erro ao buscar perfil do usuário:', error);
-        return null;
-      }
-
-      return data;
-    } catch (error) {
-      console.error('Erro ao buscar perfil do usuário:', error);
-      return null;
-    }
-  }, []);
-
-  // Efeito para carregar e monitorar a sessão do usuário
+  // Efeito para carregar e monitorar a sessão - SIMPLIFICADO
   useEffect(() => {
-    const setupAuth = async () => {
-      setLoading(true);
-      
+    console.log('🔧 Configurando AuthContext...');
+    
+    // Função para obter sessão atual
+    const getSession = async () => {
       try {
-        console.log('🔄 Configurando autenticação inicial...');
-        
-        // Obtém a sessão atual
         const { data: { session: currentSession } } = await supabase.auth.getSession();
+        
         setSession(currentSession);
         
-        if (currentSession) {
-          console.log('✅ Sessão encontrada, carregando perfil...');
-          const userData = await fetchUserProfile(currentSession.user.id);
-          setUser(userData);
+        if (currentSession?.user) {
+          const authUser = convertToAuthUser(currentSession.user);
+          setUser(authUser);
+          console.log('✅ Usuário logado:', authUser.email);
         } else {
-          console.log('❌ Nenhuma sessão encontrada');
           setUser(null);
+          console.log('❌ Nenhuma sessão ativa');
         }
       } catch (error) {
-        console.error('💥 Erro ao configurar auth:', error);
+        console.error('❌ Erro ao obter sessão:', error);
         setUser(null);
         setSession(null);
       } finally {
@@ -161,47 +141,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     };
     
-    // Configura a autenticação inicial
-    setupAuth();
+    // Obter sessão inicial
+    getSession();
     
-    // Configura o listener para mudanças na autenticação
+    // Listener para mudanças de autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          const profile = await fetchUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
-          }
+        console.log('🔄 Estado auth mudou:', event);
+        
+        setSession(session);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          const authUser = convertToAuthUser(session.user);
+          setUser(authUser);
+          console.log('✅ Login detectado:', authUser.email);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          console.log('🚪 Logout detectado');
         }
-        setSession(session);
-        setLoading(false);
       }
     );
     
-    // Limpa o listener quando o componente é desmontado
     return () => {
-      authListener.subscription?.unsubscribe();
+      authListener.subscription.unsubscribe();
     };
-  }, [fetchUserProfile]);
+  }, []); // Array de dependências vazio - executa apenas uma vez
   
   // Verifica se o usuário está autenticado
-  const isAuthenticated = !!session && !!user;
-  
-  // Log mudanças importantes no estado
-  useEffect(() => {
-    console.log('📊 AuthContext: Estado mudou:', { 
-      hasUser: !!user, 
-      hasSession: !!session, 
-      isAuthenticated, 
-      loading,
-      userRole: user?.role 
-    });
-  }, [user, session, isAuthenticated, loading]);
-  
-  // Valores expostos pelo contexto
-  const value = {
+  const isAuthenticated = !!user && !!session;
+
+  // Valores computados
+  const value: AuthContextType = {
     user,
     session,
     loading,
@@ -210,8 +180,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     checkUserRole
   };
-  
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export default AuthProvider;

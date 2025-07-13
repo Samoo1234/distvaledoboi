@@ -766,7 +766,7 @@ const SalesTeamManagement: React.FC = () => {
             <Alert severity="info">
               <Typography variant="body1">Nenhum território cadastrado</Typography>
               <Typography variant="body2">
-                O script SQL já criou alguns territórios exemplo. Recarregue a página ou execute o script novamente.
+                Clique em "Novo Território" para criar territórios de vendas.
               </Typography>
             </Alert>
           )}
@@ -1337,4 +1337,4 @@ const SalesTeamManagement: React.FC = () => {
   );
 };
 
-export default SalesTeamManagement; 
+export default SalesTeamManagement;

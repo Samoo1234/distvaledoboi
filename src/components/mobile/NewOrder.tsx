@@ -40,10 +40,17 @@ import { useAuth } from '../../contexts/AuthContext';
 import customerService, { Customer } from '../../services/customerService';
 import productService, { Product } from '../../services/productService';
 import { OrderService } from '../../services/orders';
+import ProductsList from './ProductsList';
 
 const steps = ['Cliente', 'Produtos', 'Revisão'];
 
-const NewOrder: React.FC = () => {
+interface NewOrderProps {
+  onClose?: () => void;
+}
+
+const NewOrder: React.FC<NewOrderProps> = ({ onClose }) => {
+  console.log('🛒 NewOrder component iniciado');
+  
   const [activeStep, setActiveStep] = useState(0);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -52,6 +59,7 @@ const NewOrder: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomerDialog, setShowCustomerDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showProductsList, setShowProductsList] = useState(false);
   
   const navigate = useNavigate();
   const { state: cartState, addItem, removeItem, updateQuantity, clearCart } = useCart();
@@ -60,21 +68,27 @@ const NewOrder: React.FC = () => {
 
   const loadCustomers = useCallback(async () => {
     try {
+      console.log('📋 Carregando clientes...');
       const data = await customerService.getAll({ activeOnly: true });
-      setCustomers(data);
+      console.log('✅ Clientes carregados:', data?.length || 0);
+      setCustomers(data || []);
     } catch (error) {
-      console.error('Erro ao carregar clientes:', error);
+      console.error('❌ Erro ao carregar clientes:', error);
       showNotification({ message: 'Erro ao carregar clientes', type: 'error' });
+      setCustomers([]);
     }
   }, [showNotification]);
 
   const loadProducts = useCallback(async () => {
     try {
+      console.log('📦 Carregando produtos...');
       const data = await productService.getAll({ activeOnly: true });
-      setProducts(data);
+      console.log('✅ Produtos carregados:', data?.length || 0);
+      setProducts(data || []);
     } catch (error) {
-      console.error('Erro ao carregar produtos:', error);
+      console.error('❌ Erro ao carregar produtos:', error);
       showNotification({ message: 'Erro ao carregar produtos', type: 'error' });
+      setProducts([]);
     }
   }, [showNotification]);
 
@@ -84,17 +98,23 @@ const NewOrder: React.FC = () => {
   }, [loadCustomers, loadProducts]);
 
   const handleNext = () => {
+    console.log('▶️ Próximo passo:', activeStep, '-> Validando...');
+    
     if (activeStep === 0 && !selectedCustomer) {
+      console.log('⚠️ Cliente não selecionado');
       showNotification({ message: 'Selecione um cliente para continuar', type: 'warning' });
       return;
     }
     
     if (activeStep === 1 && cartState.itemCount === 0) {
+      console.log('⚠️ Carrinho vazio');
       showNotification({ message: 'Adicione pelo menos um produto ao pedido', type: 'warning' });
       return;
     }
     
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    const nextStep = activeStep + 1;
+    console.log('✅ Avançando para o passo:', nextStep);
+    setActiveStep(nextStep);
   };
 
   const handleBack = () => {
@@ -114,12 +134,19 @@ const NewOrder: React.FC = () => {
         selectedCustomer,
         cartState.items,
         user?.id || '',
-        '' // notes
+        '', // notes
+        '' // payment_method
       );
       
       clearCart();
       showNotification({ message: 'Pedido criado com sucesso!', type: 'success' });
-      navigate('/mobile');
+      
+      // Se há um callback onClose, usa ele, senão navega normalmente
+      if (onClose) {
+        onClose();
+      } else {
+        navigate('/mobile');
+      }
       
     } catch (error) {
       console.error('Erro ao criar pedido:', error);
@@ -194,15 +221,63 @@ const NewOrder: React.FC = () => {
         );
 
       case 1:
+        // Se estiver mostrando lista de produtos, renderiza o ProductsList
+        if (showProductsList) {
+          return (
+            <Box>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Button
+                  startIcon={<ArrowBackIcon />}
+                  onClick={() => setShowProductsList(false)}
+                  sx={{ mr: 2 }}
+                >
+                  Voltar ao Carrinho
+                </Button>
+                <Typography variant="h6">
+                  Adicionar Produtos
+                </Typography>
+              </Box>
+              <ProductsList 
+                onSelectProduct={(product) => {
+                  // Opcional: fazer algo quando produto é selecionado
+                }}
+                onBack={() => setShowProductsList(false)}
+              />
+            </Box>
+          );
+        }
+        
+        // Visualização normal do carrinho
         return (
           <Box>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Produtos no Carrinho
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Produtos no Carrinho
+              </Typography>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={() => setShowProductsList(true)}
+                size="small"
+              >
+                Adicionar Produtos
+              </Button>
+            </Box>
             
             {cartState.itemCount === 0 ? (
-              <Alert severity="info">
-                Nenhum produto adicionado. Navegue para a lista de produtos para adicionar itens.
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Typography>Nenhum produto adicionado ao carrinho.</Typography>
+                  <Button
+                    variant="contained"
+                    startIcon={<AddIcon />}
+                    onClick={() => setShowProductsList(true)}
+                    size="small"
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Buscar Produtos
+                  </Button>
+                </Box>
               </Alert>
             ) : (
               <List>
@@ -308,14 +383,19 @@ const NewOrder: React.FC = () => {
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/mobile')}
+          onClick={() => onClose ? onClose() : navigate('/mobile')}
           sx={{ mr: 2 }}
         >
           Voltar
         </Button>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>
+        <Typography variant="h5" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
           Novo Pedido
         </Typography>
+        {cartState.itemCount > 0 && (
+          <Badge badgeContent={cartState.itemCount} color="primary">
+            <CartIcon color="action" />
+          </Badge>
+        )}
       </Box>
 
       <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
@@ -328,35 +408,38 @@ const NewOrder: React.FC = () => {
 
       {renderStepContent(activeStep)}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-        <Button
-          disabled={activeStep === 0}
-          onClick={handleBack}
-          variant="outlined"
-        >
-          Voltar
-        </Button>
-        
-        {activeStep === steps.length - 1 ? (
+      {/* Só mostra os botões de navegação se não estiver na lista de produtos */}
+      {!(activeStep === 1 && showProductsList) && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
           <Button
-            variant="contained"
-            onClick={handleFinish}
-            disabled={submitting}
-            startIcon={submitting ? <CircularProgress size={20} /> : null}
+            disabled={activeStep === 0}
+            onClick={handleBack}
+            variant="outlined"
           >
-            {submitting ? 'Finalizando...' : 'Finalizar Pedido'}
+            Voltar
           </Button>
-        ) : (
-          <Button
-            variant="contained"
-            onClick={handleNext}
-          >
-            Próximo
-          </Button>
-        )}
-      </Box>
+          
+          {activeStep === steps.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleFinish}
+              disabled={submitting}
+              startIcon={submitting ? <CircularProgress size={20} /> : null}
+            >
+              {submitting ? 'Finalizando...' : 'Finalizar Pedido'}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              onClick={handleNext}
+            >
+              Próximo
+            </Button>
+          )}
+        </Box>
+      )}
     </Box>
   );
 };
 
-export default NewOrder; 
+export default NewOrder;

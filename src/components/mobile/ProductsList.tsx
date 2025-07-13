@@ -37,6 +37,7 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const { addItem, getItemQuantity, state } = useCart();
+  const { showNotification } = useNotification();
 
   // Carregar produtos
   useEffect(() => {
@@ -76,6 +77,10 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
 
   const handleAddToCart = (product: Product) => {
     addItem(product, 1);
+    showNotification({ 
+      message: `${product.name} adicionado ao carrinho!`, 
+      type: 'success' 
+    });
   };
 
   const handleSelectProduct = (product: Product) => {
@@ -207,21 +212,23 @@ const ProductsList: React.FC<ProductsListProps> = ({ onSelectProduct, onBack }) 
         </Alert>
       )}
 
-      {/* FAB para ir ao carrinho */}
-      <Fab
-        color="primary"
-        sx={{
-          position: 'fixed',
-          bottom: 16,
-          right: 16,
-          zIndex: 1000
-        }}
-        onClick={() => {/* Navegar para carrinho */}}
-      >
-        <Badge badgeContent={state.itemCount} color="error">
-          <CartIcon />
-        </Badge>
-      </Fab>
+      {/* FAB para ir ao carrinho - só mostra se não tem callback onBack (modo standalone) */}
+      {!onBack && (
+        <Fab
+          color="primary"
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 1000
+          }}
+          onClick={() => {/* Navegar para carrinho */}}
+        >
+          <Badge badgeContent={state.itemCount} color="error">
+            <CartIcon />
+          </Badge>
+        </Fab>
+      )}
     </Box>
   );
 };

@@ -683,7 +683,7 @@ const SettingsAdmin: React.FC = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary="Tentativa de login falhada"
-                        secondary="vendedor@teste.com - Hoje às 13:45"
+                        secondary="usuário@exemplo.com - Hoje às 13:45"
                       />
                     </ListItem>
                     <ListItem>
@@ -1045,4 +1045,4 @@ const SettingsAdmin: React.FC = () => {
   );
 };
 
-export default SettingsAdmin; 
+export default SettingsAdmin;

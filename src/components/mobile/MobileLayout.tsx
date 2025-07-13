@@ -65,6 +65,12 @@ const MobileLayout: React.FC = () => {
     setShowNewOrder(true);
   };
 
+  // Função para fechar novo pedido
+  const handleCloseNewOrder = () => {
+    setShowNewOrder(false);
+    setActiveTab(0); // Volta para a tela inicial
+  };
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -73,7 +79,7 @@ const MobileLayout: React.FC = () => {
     // Se estiver criando novo pedido, mostra o componente específico
     if (showNewOrder) {
       return (
-        <NewOrder />
+        <NewOrder onClose={handleCloseNewOrder} />
       );
     }
 
@@ -206,26 +212,7 @@ const MobileLayout: React.FC = () => {
         {renderContent()}
       </Box>
 
-      {/* FAB para Novo Pedido */}
-      {!showNewOrder && (
-        <Fab
-          color="primary"
-          aria-label="novo pedido"
-          onClick={handleNewOrder}
-          sx={{
-            position: 'fixed',
-            bottom: 80,
-            right: 16,
-            bgcolor: '#990000',
-            '&:hover': {
-              bgcolor: '#7d0000'
-            },
-            zIndex: 1000
-          }}
-        >
-          <AddIcon />
-        </Fab>
-      )}
+
 
       {/* Navegação Inferior */}
       <Paper 

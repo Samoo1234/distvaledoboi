@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../components/shared/Notification';
-import { OrderService } from '../services/orders';
-import { Order } from '../services/orders';
+import orderService, { Order } from '../services/orderService';
 
 interface UseOfflineReturn {
   isOnline: boolean;
@@ -131,26 +130,32 @@ export const useOffline = (): UseOfflineReturn => {
     try {
       setIsSyncing(true);
       
-      // Sincronizar dados pendentes
-      // const pendingOrders = getSyncQueue('orders');
+      // Sincronizar pedidos offline
+      const offlineOrders = orderService.getOfflineOrders();
       
-      // TODO: Implementar sincronização correta
-      // for (const order of pendingOrders) {
-      //   try {
-      //     await OrderService.createOrder(order);
-      //     removeSyncItem('orders', order.id);
-      //     showNotification({
-      //       message: 'Pedido sincronizado com sucesso',
-      //       type: 'success'
-      //     });
-      //   } catch (error) {
-      //     console.error('Erro ao sincronizar pedido:', error);
-      //     showNotification({
-      //       message: 'Erro ao sincronizar pedido',
-      //       type: 'error'
-      //     });
-      //   }
-      // }
+      for (const order of offlineOrders) {
+        try {
+          if (order.id && order.id.startsWith('offline_')) {
+            // Criar pedido online
+            const { id, ...orderData } = order;
+            await orderService.createOrder(orderData as any);
+            
+            // Remover da lista offline
+            orderService.removeOfflineOrder(order.id);
+            
+            showNotification({
+              message: 'Pedido sincronizado com sucesso',
+              type: 'success'
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao sincronizar pedido:', error);
+          showNotification({
+            message: 'Erro ao sincronizar pedido',
+            type: 'error'
+          });
+        }
+      }
       
       return true;
     } catch (error) {

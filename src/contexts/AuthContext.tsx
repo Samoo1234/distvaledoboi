@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Session, 
@@ -51,7 +51,7 @@ export const useAuth = (): AuthContextType => {
 
 // Props do provedor de autenticação
 interface AuthProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
 // Provedor de autenticação
@@ -112,48 +112,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   // Função auxiliar para buscar perfil do usuário
-  const fetchUserProfile = async (userId: string): Promise<AuthUser | null> => {
+  const fetchUserProfile = useCallback(async (userId: string) => {
     try {
-      console.log('📄 Buscando perfil do usuário:', userId);
-      
-      const { data: profileData, error: profileError } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
-        .select('role, name, avatar_url, active')
+        .select('*')
         .eq('id', userId)
         .single();
-      
-      console.log('📨 Resultado da busca:', { profileData, profileError });
-      
-      if (profileError) {
-        console.log('❌ Erro ao buscar perfil:', profileError.message);
+
+      if (error) {
+        console.error('Erro ao buscar perfil do usuário:', error);
         return null;
       }
-      
-      if (!profileData.active) {
-        console.log('❌ Conta desativada');
-        showNotification({
-          message: 'Sua conta está desativada. Entre em contato com o administrador.',
-          type: 'error'
-        });
-        await supabase.auth.signOut();
-        return null;
-      }
-      
-      const userData: AuthUser = {
-        id: userId,
-        email: session?.user?.email || '',
-        name: profileData.name || 'Usuário',
-        role: profileData.role,
-        avatar_url: profileData.avatar_url
-      };
-      
-      console.log('✅ Perfil processado:', userData);
-      return userData;
+
+      return data;
     } catch (error) {
-      console.error('💥 Erro ao buscar perfil:', error);
+      console.error('Erro ao buscar perfil do usuário:', error);
       return null;
     }
-  };
+  }, []);
 
   // Efeito para carregar e monitorar a sessão do usuário
   useEffect(() => {
@@ -188,37 +165,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setupAuth();
     
     // Configura o listener para mudanças na autenticação
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      console.log('🔄 AuthContext: onAuthStateChange triggered', { event, hasSession: !!currentSession });
-      
-      setSession(currentSession);
-      
-      if (event === 'SIGNED_IN' && currentSession) {
-        console.log('✅ Usuario logou, carregando perfil...');
-        
-        // Aguardar um momento para a sessão se estabelecer
-        setTimeout(async () => {
-          const userData = await fetchUserProfile(currentSession.user.id);
-          if (userData) {
-            console.log('🎯 Definindo usuário no estado:', userData);
-            setUser(userData);
-          } else {
-            console.log('❌ Falha ao carregar perfil, fazendo logout');
-            await supabase.auth.signOut();
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          const profile = await fetchUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
           }
-        }, 500);
-        
-      } else if (event === 'SIGNED_OUT') {
-        console.log('👋 Usuario fez logout');
-        setUser(null);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+        }
+        setSession(session);
+        setLoading(false);
       }
-    });
+    );
     
     // Limpa o listener quando o componente é desmontado
     return () => {
-      authListener.subscription.unsubscribe();
+      authListener.subscription?.unsubscribe();
     };
-  }, [navigate, showNotification]);
+  }, [fetchUserProfile]);
   
   // Verifica se o usuário está autenticado
   const isAuthenticated = !!session && !!user;

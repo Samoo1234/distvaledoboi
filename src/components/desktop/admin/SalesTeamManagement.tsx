@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -219,122 +219,98 @@ const SalesTeamManagement: React.FC = () => {
     'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
   ];
 
-  // Carregar dados - VERSÃO SIMPLIFICADA SEM JOINS COMPLEXOS
-  const loadSalespeople = async () => {
+  // Carregar dados
+  const loadSalespeople = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Consulta simples sem JOIN
       const { data, error } = await supabase
-        .from('salesperson_profiles')
+        .from('salespeople')
         .select('*')
-        .order('employee_code');
-
-      if (error) {
-        console.error('Erro ao carregar vendedores:', error);
-        // Se a tabela não existir, apenas mostra aviso
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          showNotification({ 
-            message: 'Tabelas de vendedores ainda não foram criadas. Execute o script SQL primeiro.', 
-            type: 'warning' 
-          });
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setSalespeople(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar vendedores:', error);
       showNotification({ message: 'Erro ao carregar vendedores', type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadTerritories = async () => {
+  const loadTerritories = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('sales_territories')
+        .from('territories')
         .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Erro ao carregar territórios:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return; // Tabela não existe ainda
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setTerritories(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar territórios:', error);
       showNotification({ message: 'Erro ao carregar territórios', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadSalesGoals = async () => {
+  const loadSalesGoals = useCallback(async () => {
     try {
-      // Consulta simples sem JOIN
+      setLoading(true);
       const { data, error } = await supabase
         .from('sales_goals')
         .select('*')
-        .order('period_start', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao carregar metas:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return; // Tabela não existe ainda
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setSalesGoals(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar metas:', error);
-      showNotification({ message: 'Erro ao carregar metas de vendas', type: 'error' });
+      showNotification({ message: 'Erro ao carregar metas', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadCommissions = async () => {
+  const loadCommissions = useCallback(async () => {
     try {
-      // Consulta simples sem JOIN
+      setLoading(true);
       const { data, error } = await supabase
-        .from('sales_commissions')
+        .from('commissions')
         .select('*')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (error) {
-        console.error('Erro ao carregar comissões:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return; // Tabela não existe ainda
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setCommissions(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar comissões:', error);
       showNotification({ message: 'Erro ao carregar comissões', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
-        .select('id, name, role')
-        .eq('role', 'vendedor')
-        .eq('active', true);
-
+        .select('*')
+        .order('full_name', { ascending: true });
+      
       if (error) throw error;
+      
       setUsers(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar usuários:', error);
+      showNotification({ message: 'Erro ao carregar usuários', type: 'error' });
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadSalespeople();
@@ -342,7 +318,7 @@ const SalesTeamManagement: React.FC = () => {
     loadSalesGoals();
     loadCommissions();
     loadUsers();
-  }, []);
+  }, [loadSalespeople, loadTerritories, loadSalesGoals, loadCommissions, loadUsers]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);

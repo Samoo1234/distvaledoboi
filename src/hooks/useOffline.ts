@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useNotification } from '../components/shared/Notification';
+import { OrderService } from '../services/orders';
+import { Order } from '../services/orders';
 
 interface UseOfflineReturn {
   isOnline: boolean;
@@ -25,6 +28,9 @@ export const useOffline = (): UseOfflineReturn => {
   );
   const [hasOfflineData, setHasOfflineData] = useState<boolean>(false);
   const [pendingSyncCount, setPendingSyncCount] = useState<number>(0);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  const { showNotification } = useNotification();
 
   // Chaves para localStorage
   const CACHE_PREFIX = 'valedoboi_cache_';
@@ -119,69 +125,41 @@ export const useOffline = (): UseOfflineReturn => {
   };
 
   // Função para sincronizar dados
-  const syncData = async (): Promise<boolean> => {
-    if (!isOnline) {
-      console.warn('Não é possível sincronizar enquanto estiver offline');
-      return false;
-    }
+  const syncData = useCallback(async (): Promise<boolean> => {
+    if (!isOnline || isSyncing) return false;
 
     try {
-      console.log('🔄 Iniciando sincronização de dados offline...');
+      setIsSyncing(true);
       
-      // Sincronizar fila de sincronização
-      const syncQueue = localStorage.getItem(SYNC_QUEUE_KEY);
-      if (syncQueue) {
-        const queue = JSON.parse(syncQueue);
-        
-        for (const item of queue) {
-          try {
-            // Aqui você implementaria a lógica específica de sincronização
-            // Por exemplo, recriar pedidos que foram feitos offline
-            console.log('Sincronizando item:', item);
-            
-            // Simular sincronização
-            await new Promise(resolve => setTimeout(resolve, 500));
-          } catch (error) {
-            console.error('Erro ao sincronizar item:', error);
-            // Continuar com outros itens mesmo se um falhar
-          }
-        }
-        
-        // Limpar fila após sincronização
-        localStorage.removeItem(SYNC_QUEUE_KEY);
-      }
+      // Sincronizar dados pendentes
+      // const pendingOrders = getSyncQueue('orders');
       
-      // Sincronizar pedidos offline
-      const offlineOrders = localStorage.getItem(OFFLINE_ORDERS_KEY);
-      if (offlineOrders) {
-        const orders = JSON.parse(offlineOrders);
-        
-        for (const order of orders) {
-          try {
-            console.log('Sincronizando pedido offline:', order);
-            
-            // Aqui você implementaria a criação real do pedido
-            // usando OrderService.createOrder
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.error('Erro ao sincronizar pedido:', error);
-          }
-        }
-        
-        // Limpar pedidos offline após sincronização
-        localStorage.removeItem(OFFLINE_ORDERS_KEY);
-      }
+      // TODO: Implementar sincronização correta
+      // for (const order of pendingOrders) {
+      //   try {
+      //     await OrderService.createOrder(order);
+      //     removeSyncItem('orders', order.id);
+      //     showNotification({
+      //       message: 'Pedido sincronizado com sucesso',
+      //       type: 'success'
+      //     });
+      //   } catch (error) {
+      //     console.error('Erro ao sincronizar pedido:', error);
+      //     showNotification({
+      //       message: 'Erro ao sincronizar pedido',
+      //       type: 'error'
+      //     });
+      //   }
+      // }
       
-      setHasOfflineData(false);
-      setPendingSyncCount(0);
-      
-      console.log('✅ Sincronização concluída com sucesso');
       return true;
     } catch (error) {
-      console.error('❌ Erro na sincronização:', error);
+      console.error('Erro na sincronização:', error);
       return false;
+    } finally {
+      setIsSyncing(false);
     }
-  };
+  }, [isOnline, isSyncing, showNotification]);
 
   // Função para limpar dados offline
   const clearOfflineData = () => {
@@ -215,6 +193,10 @@ export const useOffline = (): UseOfflineReturn => {
       console.error('Erro ao limpar dados offline:', error);
     }
   };
+
+  useEffect(() => {
+    syncData();
+  }, [syncData]);
 
   useEffect(() => {
     // Verificar dados offline na montagem
@@ -258,7 +240,7 @@ export const useOffline = (): UseOfflineReturn => {
       clearInterval(interval);
       clearInterval(cleanupInterval);
     };
-  }, [hasOfflineData]);
+  }, [hasOfflineData, syncData]);
 
   return {
     isOnline,

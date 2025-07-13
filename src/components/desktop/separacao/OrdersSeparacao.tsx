@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
+  Grid,
   Table,
   TableBody,
   TableCell,
@@ -12,32 +13,38 @@ import {
   TableRow,
   Paper,
   IconButton,
+  Button,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
-  Chip,
-  CircularProgress,
-  Grid,
   TextField,
-  InputAdornment,
-  List,
-  ListItem,
-  ListItemText,
-  Divider,
-  Alert
+  CircularProgress,
+  Alert,
+  Pagination,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  InputAdornment
 } from '@mui/material';
 import {
-  PlayArrow as StartIcon,
-  Check as CompleteIcon,
   Visibility as ViewIcon,
+  CheckCircle as CheckCircleIcon,
+  LocalShipping as ShippingIcon,
   Search as SearchIcon,
   ShoppingCart as CartIcon,
   Person as PersonIcon,
-  Phone as PhoneIcon,
+  LocationOn as LocationIcon,
+  Payment as PaymentIcon,
+  Schedule as ScheduleIcon,
   Assignment as AssignmentIcon,
-  Schedule as ScheduleIcon
+  Print as PrintIcon,
+  GetApp as DownloadIcon,
+  Done as CompleteIcon,
+  PlayArrow as StartIcon,
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../../services/orders';
 import { useNotification } from '../../shared/Notification';
@@ -55,7 +62,7 @@ const OrdersSeparacao: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar pedidos para separação
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await OrderService.getOrdersForSeparation();
@@ -66,11 +73,11 @@ const OrdersSeparacao: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
 
   // Filtrar pedidos
   const filteredOrders = orders.filter(order => {

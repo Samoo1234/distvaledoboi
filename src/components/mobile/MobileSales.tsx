@@ -1,24 +1,51 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
   Grid,
-  CircularProgress,
   Chip,
+  CircularProgress,
+  Alert,
   List,
   ListItem,
   ListItemText,
+  ListItemSecondaryAction,
+  IconButton,
   Divider,
   LinearProgress
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Assessment as ReportsIcon,
   AttachMoney as MoneyIcon,
   ShoppingCart as CartIcon,
+  Person as PersonIcon,
+  Visibility as ViewIcon,
+  Schedule as ScheduleIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  LocalShipping as ShippingIcon,
+  Business as BusinessIcon,
+  Star as StarIcon,
+  MoreVert as MoreVertIcon,
+  Refresh as RefreshIcon,
+  Print as PrintIcon,
+  GetApp as DownloadIcon,
+  FilterList as FilterIcon,
+  Sort as SortIcon,
+  Search as SearchIcon,
   DateRange as DateIcon,
-  Star as StarIcon
+  Timeline as TimelineIcon,
+  BarChart as BarChartIcon,
+  PieChart as PieChartIcon,
+  ShowChart as ShowChartIcon,
+  Insights as InsightsIcon,
+  Analytics as AnalyticsIcon,
+  MonetizationOn as MonetizationOnIcon,
+  TrendingFlat as TrendingFlatIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../services/orders';
 import { useNotification } from '../shared/Notification';
@@ -34,24 +61,22 @@ const MobileSales: React.FC = () => {
   const { user } = useAuth();
 
   // Carregar pedidos do vendedor
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await OrderService.getOrders({
-        salesperson_id: user?.id
-      });
+      const data = await OrderService.getOrders();
       setOrders(data);
     } catch (error) {
-      console.error('Erro ao carregar vendas:', error);
-      showNotification({ message: 'Erro ao carregar vendas', type: 'error' });
+      console.error('Erro ao carregar pedidos:', error);
+      showNotification({ message: 'Erro ao carregar pedidos', type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadOrders();
-  }, [user?.id]);
+  }, [loadOrders]);
 
   // Calcular estatísticas
   const today = new Date();

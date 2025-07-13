@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Card, 
-  CardContent, 
-  Button, 
-  Grid, 
+import {
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Button,
+  Grid,
   Divider,
   IconButton,
   Badge,
@@ -13,7 +13,7 @@ import {
   Alert,
   CircularProgress
 } from '@mui/material';
-import { 
+import {
   ShoppingCart as ShoppingCartIcon,
   People as PeopleIcon,
   Assessment as AssessmentIcon,
@@ -43,18 +43,18 @@ interface MobileHomeProps {
 const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
   const { user } = useAuth();
   const { state: cartState } = useCart();
-  const { 
-    isOnline, 
-    hasOfflineData, 
-    pendingSyncCount, 
-    syncData, 
-    clearOfflineData 
+  const {
+    isOnline,
+    hasOfflineData,
+    pendingSyncCount,
+    syncData,
+    clearOfflineData
   } = useOffline();
   const { showNotification } = useNotification();
   const userName = user?.name || 'Vendedor';
   const [currentView, setCurrentView] = useState<MobileView>('home');
   const [syncing, setSyncing] = useState(false);
-  
+
   // Dados simulados para a demonstração
   const todayOrders = 3;
   const todaySales = 'R$ 1.250,00';
@@ -98,15 +98,15 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
     return (
       <Box>
         {/* Header com botão voltar */}
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          p: 2, 
-          bgcolor: '#990000', 
-          color: 'white' 
+        <Box sx={{
+          display: 'flex',
+          alignItems: 'center',
+          p: 2,
+          bgcolor: '#990000',
+          color: 'white'
         }}>
-          <IconButton 
-            onClick={() => setCurrentView('home')} 
+          <IconButton
+            onClick={() => setCurrentView('home')}
             sx={{ color: 'white', mr: 1 }}
           >
             <ArrowBackIcon />
@@ -116,12 +116,12 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
           </Typography>
           {cartState.itemCount > 0 && (
             <Badge badgeContent={cartState.itemCount} color="error">
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                bgcolor: 'rgba(255,255,255,0.1)', 
-                borderRadius: 1, 
-                px: 1 
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                bgcolor: 'rgba(255,255,255,0.1)',
+                borderRadius: 1,
+                px: 1
               }}>
                 <ShoppingCartIcon sx={{ mr: 0.5 }} />
                 <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
@@ -131,7 +131,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
             </Badge>
           )}
         </Box>
-        
+
         <ProductsList />
       </Box>
     );
@@ -167,16 +167,16 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <IconButton 
-                size="small" 
+              <IconButton
+                size="small"
                 onClick={handleSync}
                 disabled={!isOnline || syncing}
                 sx={{ bgcolor: '#2196f3', color: 'white' }}
               >
                 {syncing ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
               </IconButton>
-              <IconButton 
-                size="small" 
+              <IconButton
+                size="small"
                 onClick={() => {
                   clearOfflineData();
                   showNotification({ message: 'Dados offline limpos', type: 'info' });
@@ -202,7 +202,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip 
+            <Chip
               icon={isOnline ? <WifiIcon /> : <CloudOffIcon />}
               label={isOnline ? 'Online' : 'Offline'}
               color={isOnline ? 'success' : 'warning'}
@@ -215,11 +215,11 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
 
       {/* Indicador de carrinho ativo */}
       {cartState.itemCount > 0 && (
-        <Card sx={{ 
-          mb: 3, 
-          bgcolor: '#e8f5e8', 
+        <Card sx={{
+          mb: 3,
+          bgcolor: '#e8f5e8',
           border: '2px solid #4caf50',
-          borderRadius: 2 
+          borderRadius: 2
         }}>
           <CardContent sx={{ p: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -234,7 +234,7 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
                   </Typography>
                 </Box>
               </Box>
-              <Chip 
+              <Chip
                 label={cartState.selectedCustomer ? cartState.selectedCustomer.company_name : 'Sem cliente'}
                 size="small"
                 color={cartState.selectedCustomer ? "success" : "default"}
@@ -248,9 +248,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
       <Grid container spacing={2}>
         {/* Botão Novo Pedido */}
         <Grid item xs={12}>
-          <Card 
+          <Card
             onClick={handleNewOrder}
-            sx={{ 
+            sx={{
               borderRadius: 2,
               bgcolor: '#990000',
               color: 'white',
@@ -263,9 +263,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
               }
             }}
           >
-            <CardContent sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <CardContent sx={{
+              display: 'flex',
+              alignItems: 'center',
               p: 3,
               '&:last-child': { pb: 3 }
             }}>
@@ -275,17 +275,17 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
                   {cartState.itemCount > 0 ? 'CONTINUAR PEDIDO' : 'NOVO PEDIDO'}
                 </Typography>
                 <Typography variant="body2">
-                  {cartState.itemCount > 0 ? 
-                    `${cartState.itemCount} itens no carrinho` : 
+                  {cartState.itemCount > 0 ?
+                    `${cartState.itemCount} itens no carrinho` :
                     'Criar pedido com workflow completo'
                   }
                 </Typography>
               </Box>
               {cartState.itemCount > 0 && (
                 <Badge badgeContent={cartState.itemCount} color="error">
-                  <Box sx={{ 
-                    bgcolor: 'white', 
-                    color: '#990000', 
+                  <Box sx={{
+                    bgcolor: 'white',
+                    color: '#990000',
                     borderRadius: '50%',
                     width: 32,
                     height: 32,
@@ -305,9 +305,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
 
         {/* Botão Meus Clientes */}
         <Grid item xs={12}>
-          <Card 
+          <Card
             onClick={() => setCurrentView('clients')}
-            sx={{ 
+            sx={{
               borderRadius: 2,
               border: '2px solid #990000',
               mb: 2,
@@ -319,9 +319,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
               }
             }}
           >
-            <CardContent sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <CardContent sx={{
+              display: 'flex',
+              alignItems: 'center',
               p: 3,
               '&:last-child': { pb: 3 }
             }}>
@@ -340,9 +340,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
 
         {/* Botão Minhas Vendas */}
         <Grid item xs={12}>
-          <Card 
+          <Card
             onClick={() => setCurrentView('sales')}
-            sx={{ 
+            sx={{
               borderRadius: 2,
               border: '2px solid #990000',
               mb: 2,
@@ -354,9 +354,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
               }
             }}
           >
-            <CardContent sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <CardContent sx={{
+              display: 'flex',
+              alignItems: 'center',
               p: 3,
               '&:last-child': { pb: 3 }
             }}>
@@ -382,8 +382,8 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
 
         {/* Botão Suporte */}
         <Grid item xs={12}>
-          <Card 
-            sx={{ 
+          <Card
+            sx={{
               borderRadius: 2,
               bgcolor: '#f5f5f5',
               cursor: 'pointer',
@@ -394,9 +394,9 @@ const MobileHome: React.FC<MobileHomeProps> = ({ onNewOrder }) => {
               }
             }}
           >
-            <CardContent sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
+            <CardContent sx={{
+              display: 'flex',
+              alignItems: 'center',
               p: 3,
               '&:last-child': { pb: 3 }
             }}>

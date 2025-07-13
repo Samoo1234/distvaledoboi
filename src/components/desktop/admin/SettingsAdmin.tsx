@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
-  Grid,
+  Button,
   Table,
   TableBody,
   TableCell,
@@ -12,62 +10,65 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Button,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Switch,
-  FormControlLabel,
-  Chip,
+  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  TextField,
+  Chip,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Grid,
+  Card,
+  CardContent,
+  Divider,
   Alert,
+  Switch,
+  FormControlLabel,
+  Tabs,
+  Tab,
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   ListItemSecondaryAction,
-  Divider,
-  IconButton,
-  CircularProgress,
-  Tabs,
-  Tab,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails
+  ListItemIcon,
+  InputAdornment,
+  Tooltip,
+  Snackbar
 } from '@mui/material';
 import {
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
   Settings as SettingsIcon,
-  People as PeopleIcon,
   Security as SecurityIcon,
   Notifications as NotificationsIcon,
   Storage as StorageIcon,
-  Email as EmailIcon,
-  Backup as BackupIcon,
-  Computer as SystemIcon,
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as ViewIcon,
-  VisibilityOff as HideIcon,
-  Save as SaveIcon,
-  RestoreFromTrash as RestoreIcon,
   CloudUpload as CloudUploadIcon,
-  GetApp as DownloadIcon,
-  Warning as WarningIcon,
-  CheckCircle as CheckCircleIcon,
-  Schedule as ScheduleIcon,
+  Backup as BackupIcon,
+  RestoreFromTrash as RestoreIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  Save as SaveIcon,
+  Refresh as RefreshIcon,
   Business as BusinessIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
   Phone as PhoneIcon,
   LocationOn as LocationIcon,
-  ExpandMore as ExpandMoreIcon,
-  VpnKey as KeyIcon,
+  Group as GroupIcon,
+  Person as PersonIcon,
+  Code as CodeIcon,
+  VpnKey as VpnKeyIcon,
+  Schedule as ScheduleIcon,
   Shield as ShieldIcon,
-  Info as InfoIcon
+  Update as UpdateIcon,
+  CloudDownload as CloudDownloadIcon,
+  Computer as SystemIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useNotification } from '../../shared/Notification';
@@ -161,74 +162,49 @@ const SettingsAdmin: React.FC = () => {
   });
 
   // Carregar usuários
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setLoading(true);
-      
-      // Buscar usuários da tabela user_profiles (que deve existir)
-      const { data: profiles, error } = await supabase
+      const { data, error } = await supabase
         .from('user_profiles')
         .select(`
           id,
-          name,
+          full_name,
           email,
-          role,
+          user_type,
           active,
-          created_at
+          created_at,
+          last_login,
+          permissions
         `)
         .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao carregar perfis:', error);
-        
-        // Se a tabela user_profiles não existir, tentar tabela users
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          console.log('Tentando tabela users...');
-          
-          const { data: users, error: usersError } = await supabase
-            .from('users')
-            .select('id, email, user_metadata, role, created_at')
-            .order('created_at', { ascending: false });
-            
-          if (usersError) {
-            console.error('Erro ao carregar usuários:', usersError);
-            showNotification({ 
-              message: 'Tabelas de usuários não encontradas. Verifique se o banco está configurado.', 
-              type: 'warning' 
-            });
-            setUsers([]);
-            return;
-          }
-          
-          // Transformar dados da tabela users para o formato esperado
-          const transformedUsers = users?.map(user => ({
-            id: user.id,
-            name: user.user_metadata?.name || 'Sem nome',
-            email: user.email || 'Sem email',
-            role: user.role || 'vendedor',
-            active: true,
-            created_at: user.created_at
-          })) || [];
-          
-          setUsers(transformedUsers);
-          return;
-        }
-        throw error;
-      }
-
-      setUsers(profiles || []);
+      
+      if (error) throw error;
+      
+      // Mapear dados para o tipo UserProfile
+      const mappedUsers = (data || []).map((user: any) => ({
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        role: user.user_type,
+        active: user.active,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        permissions: user.permissions
+      }));
+      
+      setUsers(mappedUsers);
     } catch (error) {
       console.error('Erro ao carregar usuários:', error);
       showNotification({ message: 'Erro ao carregar usuários', type: 'error' });
-      setUsers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [loadUsers]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -469,8 +445,8 @@ const SettingsAdmin: React.FC = () => {
       <Paper>
         <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tab label="Geral" icon={<SettingsIcon />} />
-          <Tab label="Usuários" icon={<PeopleIcon />} />
-          <Tab label="Segurança" icon={<SecurityIcon />} />
+          <Tab label="Usuários" icon={<GroupIcon />} />
+          <Tab label="Segurança" icon={<ShieldIcon />} />
           <Tab label="Notificações" icon={<NotificationsIcon />} />
           <Tab label="Backup" icon={<StorageIcon />} />
         </Tabs>
@@ -590,7 +566,7 @@ const SettingsAdmin: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom sx={{ color: '#990000' }}>
-                <PeopleIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                <GroupIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                 Usuários do Sistema
               </Typography>
               
@@ -687,7 +663,7 @@ const SettingsAdmin: React.FC = () => {
               <Card>
                 <CardContent>
                   <Typography variant="h6" gutterBottom sx={{ color: '#990000' }}>
-                    <KeyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    <VpnKeyIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
                     Logs de Segurança
                   </Typography>
                   
@@ -832,7 +808,7 @@ const SettingsAdmin: React.FC = () => {
                     
                     <Button
                       variant="outlined"
-                      startIcon={<DownloadIcon />}
+                      startIcon={<CloudDownloadIcon />}
                       sx={{ mb: 2, borderColor: '#990000', color: '#990000' }}
                     >
                       Baixar Último Backup
@@ -899,7 +875,7 @@ const SettingsAdmin: React.FC = () => {
                           </TableCell>
                           <TableCell align="right">
                             <IconButton size="small">
-                              <DownloadIcon />
+                              <CloudDownloadIcon />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -912,7 +888,7 @@ const SettingsAdmin: React.FC = () => {
                           </TableCell>
                           <TableCell align="right">
                             <IconButton size="small">
-                              <DownloadIcon />
+                              <CloudDownloadIcon />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -925,7 +901,7 @@ const SettingsAdmin: React.FC = () => {
                           </TableCell>
                           <TableCell align="right">
                             <IconButton size="small">
-                              <DownloadIcon />
+                              <CloudDownloadIcon />
                             </IconButton>
                           </TableCell>
                         </TableRow>
@@ -979,7 +955,7 @@ const SettingsAdmin: React.FC = () => {
                     InputProps={{
                       endAdornment: (
                         <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                          {showPassword ? <HideIcon /> : <ViewIcon />}
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
                         </IconButton>
                       )
                     }}
@@ -1043,7 +1019,7 @@ const SettingsAdmin: React.FC = () => {
             </ListItem>
             <ListItem button>
               <ListItemIcon>
-                <DownloadIcon />
+                <CloudDownloadIcon />
               </ListItemIcon>
               <ListItemText
                 primary="Baixar Backup"

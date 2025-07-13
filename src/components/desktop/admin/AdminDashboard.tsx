@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -24,7 +24,6 @@ import {
 } from '@mui/material';
 import {
   TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
   ShoppingCart as CartIcon,
   Inventory as InventoryIcon,
   People as PeopleIcon,
@@ -47,7 +46,7 @@ const AdminDashboard: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar dados reais
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [ordersData, productsData, customersData] = await Promise.all([
@@ -65,11 +64,11 @@ const AdminDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Calcular estatísticas reais
   const salesTotal = orders.reduce((sum, order) => sum + order.total_amount, 0);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -35,17 +35,14 @@ import {
   TextField
 } from '@mui/material';
 import {
-  Assessment as ReportsIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  Schedule as ScheduleIcon,
   AttachMoney as MoneyIcon,
   People as PeopleIcon,
   Inventory as InventoryIcon,
   ShoppingCart as OrdersIcon,
   Print as PrintIcon,
   Download as DownloadIcon,
-  DateRange as DateIcon,
   BarChart as ChartIcon,
   Timeline as TimelineIcon,
   PieChart as PieChartIcon,
@@ -99,7 +96,7 @@ const ReportsAdmin: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar dados
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [ordersData, productsData, customersData] = await Promise.all([
@@ -112,16 +109,16 @@ const ReportsAdmin: React.FC = () => {
       setProducts(productsData);
       setCustomers(customersData);
     } catch (error) {
-      console.error('Erro ao carregar dados dos relatórios:', error);
-      showNotification({ message: 'Erro ao carregar relatórios', type: 'error' });
+      console.error('Erro ao carregar dados:', error);
+      showNotification({ message: 'Erro ao carregar dados', type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Filtrar dados por período
   const getFilteredOrders = () => {

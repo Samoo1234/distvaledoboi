@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -21,7 +21,6 @@ import {
   FormControl,
   InputLabel,
   Chip,
-  Alert,
   CircularProgress,
   Card,
   CardContent,
@@ -90,7 +89,7 @@ const ProductsManagement: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar produtos
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setLoading(true);
       const data = await productService.getAll({ activeOnly: false });
@@ -101,11 +100,11 @@ const ProductsManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadProducts();
-  }, []);
+  }, [loadProducts]);
 
   // Filtrar produtos
   const filteredProducts = products.filter(product => {

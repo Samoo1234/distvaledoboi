@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -42,9 +42,7 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Search as SearchIcon,
-  GasMeter as FuelIcon,
-  Schedule as ScheduleIcon,
-  Check as CheckIcon
+  GasMeter as FuelIcon
 } from '@mui/icons-material';
 import { useNotification } from '../../shared/Notification';
 import { supabase } from '../../../services/supabase';
@@ -351,143 +349,116 @@ const LogisticsManagement: React.FC = () => {
   ];
 
   // Carregar dados
-  const loadVehicles = async () => {
+  const loadVehicles = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('vehicles')
         .select('*')
-        .order('plate');
-
-      if (error) {
-        console.error('Erro ao carregar veículos:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          showNotification({ 
-            message: 'Tabelas de logística ainda não foram criadas. Execute o script SQL primeiro.', 
-            type: 'warning' 
-          });
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setVehicles(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar veículos:', error);
       showNotification({ message: 'Erro ao carregar veículos', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadDrivers = async () => {
+  const loadDrivers = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('drivers')
         .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Erro ao carregar motoristas:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setDrivers(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar motoristas:', error);
       showNotification({ message: 'Erro ao carregar motoristas', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadRoutes = async () => {
+  const loadRoutes = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('delivery_routes')
         .select('*')
-        .order('name');
-
-      if (error) {
-        console.error('Erro ao carregar rotas:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setRoutes(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar rotas:', error);
       showNotification({ message: 'Erro ao carregar rotas', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadDeliveries = async () => {
+  const loadDeliveries = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('deliveries')
         .select('*')
-        .order('scheduled_date', { ascending: false })
-        .limit(100);
-
-      if (error) {
-        console.error('Erro ao carregar entregas:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setDeliveries(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar entregas:', error);
       showNotification({ message: 'Erro ao carregar entregas', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadMaintenance = async () => {
+  const loadMaintenance = useCallback(async () => {
     try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('vehicle_maintenance')
+        .from('maintenance')
         .select('*')
-        .order('scheduled_date', { ascending: false })
-        .limit(100);
-
-      if (error) {
-        console.error('Erro ao carregar manutenções:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return;
-        }
-        throw error;
-      }
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
       
       setMaintenances(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar manutenções:', error);
       showNotification({ message: 'Erro ao carregar manutenções', type: 'error' });
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [showNotification]);
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('orders')
         .select('*')
-        .eq('order_status', 'confirmed')
         .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Erro ao carregar pedidos:', error);
-        if (error.message.includes('relation') || error.message.includes('does not exist')) {
-          return;
-        }
-        throw error;
-      }
+      
+      if (error) throw error;
       
       setOrders(data || []);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
+      showNotification({ message: 'Erro ao carregar pedidos', type: 'error' });
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadVehicles();
@@ -496,7 +467,7 @@ const LogisticsManagement: React.FC = () => {
     loadDeliveries();
     loadMaintenance();
     loadOrders();
-  }, []);
+  }, [loadVehicles, loadDrivers, loadRoutes, loadDeliveries, loadMaintenance, loadOrders]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);

@@ -15,12 +15,10 @@ import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../components/shared/Notification';
-import { useDevice } from '../hooks/useDevice';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { signIn, user, isAuthenticated } = useAuth();
-  const { deviceType } = useDevice();
   const { showNotification } = useNotification();
   
   const [email, setEmail] = useState('');

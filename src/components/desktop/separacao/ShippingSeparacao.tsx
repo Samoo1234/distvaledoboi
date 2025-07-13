@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -50,7 +50,7 @@ const ShippingSeparacao: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar pedidos em separação
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await OrderService.getOrders();
@@ -61,11 +61,11 @@ const ShippingSeparacao: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
 
   // Separar pedidos por status
   const processingOrders = orders.filter(order => order.status === 'processing');

@@ -1,27 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Card,
-  CardContent,
   List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
   TextField,
   InputAdornment,
-  Chip,
-  CircularProgress,
+  Card,
+  CardContent,
   Button,
-  Grid
+  CircularProgress,
+  Alert,
+  Fab,
+  IconButton,
+  Divider
 } from '@mui/material';
 import {
-  Phone as PhoneIcon,
-  Email as EmailIcon,
   Search as SearchIcon,
+  Person as PersonIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationIcon,
+  Email as EmailIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Add as AddIcon,
   Business as BusinessIcon,
-  Add as AddIcon
+  ContactPhone as ContactPhoneIcon,
+  ContactMail as ContactMailIcon,
+  Home as HomeIcon,
+  Work as WorkIcon,
+  Star as StarIcon,
+  MoreVert as MoreVertIcon
 } from '@mui/icons-material';
 import customerService, { Customer } from '../../services/customerService';
 import { useNotification } from '../shared/Notification';
@@ -38,13 +46,10 @@ const MobileClientsList: React.FC = () => {
   const { user } = useAuth();
 
   // Carregar clientes
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
-      const data = await customerService.getAll({ 
-        salesperson_id: user?.id,
-        activeOnly: true 
-      });
+      const data = await customerService.getAll({ activeOnly: true });
       setCustomers(data);
     } catch (error) {
       console.error('Erro ao carregar clientes:', error);
@@ -52,11 +57,11 @@ const MobileClientsList: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadCustomers();
-  }, [user?.id]);
+  }, [loadCustomers]);
 
   // Filtrar clientes
   const filteredCustomers = customers.filter(customer => 
@@ -158,59 +163,46 @@ const MobileClientsList: React.FC = () => {
                   )}
                 </Box>
 
-                <Grid container spacing={1} alignItems="center">
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <PhoneIcon sx={{ color: '#666', mr: 1, fontSize: 18 }} />
-                      <Typography variant="body2">
-                        {formatPhone(customer.contact_phone)}
-                      </Typography>
-                      <IconButton 
-                        size="small" 
-                        href={`tel:${customer.contact_phone}`}
-                        sx={{ ml: 1, color: '#990000' }}
-                      >
-                        <PhoneIcon fontSize="small" />
-                      </IconButton>
-                    </Box>
-                  </Grid>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <PhoneIcon sx={{ color: '#666', mr: 1, fontSize: 18 }} />
+                  <Typography variant="body2">
+                    {formatPhone(customer.contact_phone)}
+                  </Typography>
+                  <IconButton 
+                    size="small" 
+                    href={`tel:${customer.contact_phone}`}
+                    sx={{ ml: 1, color: '#990000' }}
+                  >
+                    <PhoneIcon fontSize="small" />
+                  </IconButton>
+                </Box>
 
-                  {customer.contact_email && (
-                    <Grid item xs={12}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <EmailIcon sx={{ color: '#666', mr: 1, fontSize: 18 }} />
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {customer.contact_email}
-                        </Typography>
-                        <IconButton 
-                          size="small" 
-                          href={`mailto:${customer.contact_email}`}
-                          sx={{ color: '#990000' }}
-                        >
-                          <EmailIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                    </Grid>
-                  )}
+                {customer.contact_email && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <EmailIcon sx={{ color: '#666', mr: 1, fontSize: 18 }} />
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {customer.contact_email}
+                    </Typography>
+                    <IconButton 
+                      size="small" 
+                      href={`mailto:${customer.contact_email}`}
+                      sx={{ color: '#990000' }}
+                    >
+                      <EmailIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                )}
 
-                  {customer.address && (
-                    <Grid item xs={12}>
-                      <Typography variant="body2" color="text.secondary">
-                        📍 {customer.address}
-                        {customer.city && customer.state && 
-                          `, ${customer.city}/${customer.state}`
-                        }
-                      </Typography>
-                    </Grid>
-                  )}
-                </Grid>
+                {customer.address && (
+                  <Typography variant="body2" color="text.secondary">
+                    📍 {customer.address}
+                    {customer.city && customer.state && 
+                      `, ${customer.city}/${customer.state}`
+                    }
+                  </Typography>
+                )}
 
                 <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Chip 
-                    label="Ativo" 
-                    color="success" 
-                    size="small" 
-                  />
                   <Box>
                     <Button
                       size="small"

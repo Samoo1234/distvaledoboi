@@ -1,49 +1,100 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
-  Stepper,
-  Step,
-  StepLabel,
-  Button,
   Card,
   CardContent,
+  CardActions,
+  Button,
+  IconButton,
+  TextField,
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
-  IconButton,
+  Divider,
+  Alert,
+  CircularProgress,
+  Stepper,
+  Step,
+  StepLabel,
+  Paper,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Tooltip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  Divider,
-  Grid,
-  InputAdornment,
+  Snackbar,
+  Avatar,
   Badge,
-  Fab,
-  CircularProgress,
-  Alert,
+  Stack,
+  Tabs,
+  Tab,
+  Grid,
+  Container,
+  Fade,
+  Slide,
+  Grow,
+  Zoom,
+  InputAdornment,
   Skeleton
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
-  Delete as DeleteIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
   ShoppingCart as CartIcon,
   Person as PersonIcon,
-  Check as CheckIcon,
-  Search as SearchIcon,
-  Edit as EditIcon,
+  Business as BusinessIcon,
+  Phone as PhoneIcon,
+  LocationOn as LocationIcon,
+  Payment as PaymentIcon,
+  ExpandMore as ExpandMoreIcon,
+  AttachMoney as MoneyIcon,
+  LocalShipping as ShippingIcon,
+  Schedule as ScheduleIcon,
+  CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
-  Refresh as RefreshIcon
+  Info as InfoIcon,
+  Star as StarIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Refresh as RefreshIcon,
+  Save as SaveIcon,
+  Print as PrintIcon,
+  GetApp as DownloadIcon,
+  Share as ShareIcon,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  Bookmark as BookmarkIcon,
+  BookmarkBorder as BookmarkBorderIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  MoreVert as MoreVertIcon,
+  Close as CloseIcon,
+  Done as DoneIcon,
+  DoneAll as DoneAllIcon,
+  Error as ErrorIcon,
+  HelpOutline as HelpIcon,
+  Settings as SettingsIcon,
+  Sync as SyncIcon,
+  SyncProblem as SyncProblemIcon,
+  CloudDone as CloudDoneIcon,
+  CloudOff as CloudOffIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  Storage as StorageIcon,
+  History as HistoryIcon,
+  Update as UpdateIcon,
+  Notifications as NotificationsIcon,
+  NotificationsOff as NotificationsOffIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import productService, { Product } from '../../services/productService';
 import customerService, { Customer } from '../../services/customerService';
@@ -86,23 +137,7 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
     clearCart 
   } = useCart();
 
-  // Carregar dados iniciais
-  useEffect(() => {
-    console.log('🔄 NewOrder: Carregando dados iniciais...');
-    console.log('👤 Usuário:', user?.id);
-    loadCustomers();
-    loadProducts();
-  }, [user?.id]);
-
-  // Se já tiver cliente no carrinho, pula para próximo passo
-  useEffect(() => {
-    if (cartState.selectedCustomer && activeStep === 0) {
-      console.log('✅ Cliente já selecionado, pulando para próximo passo');
-      setActiveStep(1);
-    }
-  }, [cartState.selectedCustomer, activeStep]);
-
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       console.log('🔄 Carregando clientes...');
       setLoadingCustomers(true);
@@ -130,9 +165,9 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
     } finally {
       setLoadingCustomers(false);
     }
-  };
+  }, [user?.id, showNotification]);
 
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       console.log('🔄 Carregando produtos...');
       setLoadingProducts(true);
@@ -145,7 +180,20 @@ const NewOrder: React.FC<NewOrderProps> = ({ onBack, onOrderCreated }) => {
     } finally {
       setLoadingProducts(false);
     }
-  };
+  }, [showNotification]);
+
+  useEffect(() => {
+    loadCustomers();
+    loadProducts();
+  }, [loadCustomers, loadProducts]);
+
+  // Se já tiver cliente no carrinho, pula para próximo passo
+  useEffect(() => {
+    if (cartState.selectedCustomer && activeStep === 0) {
+      console.log('✅ Cliente já selecionado, pulando para próximo passo');
+      setActiveStep(1);
+    }
+  }, [cartState.selectedCustomer, activeStep]);
 
   // Filtrar produtos
   const filteredProducts = products.filter(product => 

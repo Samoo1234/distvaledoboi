@@ -1,26 +1,113 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
-  TextField,
-  Chip,
   Button,
-  Grid,
+  IconButton,
+  TextField,
   InputAdornment,
+  Chip,
+  Divider,
   Alert,
   CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemSecondaryAction,
+  Badge,
   Fab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Snackbar,
-  Badge
+  Avatar,
+  Stack,
+  Grid,
+  Container,
+  Paper,
+  Tooltip
 } from '@mui/material';
 import {
-  Search as SearchIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
   ShoppingCart as CartIcon,
-  Check as CheckIcon
+  FilterList as FilterIcon,
+  Sort as SortIcon,
+  Inventory as InventoryIcon,
+  AttachMoney as MoneyIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  LocalOffer as LocalOfferIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  Error as ErrorIcon,
+  Refresh as RefreshIcon,
+  Close as CloseIcon,
+  Done as DoneIcon,
+  Check as CheckIcon,
+  ArrowBack as ArrowBackIcon,
+  ArrowForward as ArrowForwardIcon,
+  MoreVert as MoreVertIcon,
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+  Favorite as FavoriteIcon,
+  FavoriteBorder as FavoriteBorderIcon,
+  Share as ShareIcon,
+  GetApp as DownloadIcon,
+  Print as PrintIcon,
+  Save as SaveIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  Business as BusinessIcon,
+  Category as CategoryIcon,
+  Label as LabelIcon,
+  LocalShipping as ShippingIcon,
+  Schedule as ScheduleIcon,
+  Update as UpdateIcon,
+  Sync as SyncIcon,
+  SyncProblem as SyncProblemIcon,
+  CloudDone as CloudDoneIcon,
+  CloudOff as CloudOffIcon,
+  Wifi as WifiIcon,
+  WifiOff as WifiOffIcon,
+  Storage as StorageIcon,
+  History as HistoryIcon,
+  Notifications as NotificationsIcon,
+  Settings as SettingsIcon,
+  HelpOutline as HelpIcon,
+  Home as HomeIcon,
+  Work as WorkIcon,
+  Person as PersonIcon,
+  Group as GroupIcon,
+  Phone as PhoneIcon,
+  Email as EmailIcon,
+  LocationOn as LocationIcon,
+  Payment as PaymentIcon,
+  CreditCard as CreditCardIcon,
+  MonetizationOn as MonetizationOnIcon,
+  TrendingFlat as TrendingFlatIcon,
+  Assessment as AssessmentIcon,
+  BarChart as BarChartIcon,
+  PieChart as PieChartIcon,
+  ShowChart as ShowChartIcon,
+  Timeline as TimelineIcon,
+  Analytics as AnalyticsIcon,
+  Insights as InsightsIcon,
+  Dashboard as DashboardIcon,
+  Speed as SpeedIcon,
+  Timer as TimerIcon,
+  Today as TodayIcon,
+  DateRange as DateRangeIcon,
+  CalendarToday as CalendarTodayIcon,
+  AccessTime as AccessTimeIcon
 } from '@mui/icons-material';
 import productService, { Product } from '../../services/productService';
 import { useCart } from '../../contexts/CartContext';
@@ -49,11 +136,6 @@ const ProductsList: React.FC = () => {
     loadCategories();
   }, []);
 
-  // Filtrar produtos quando busca ou categoria mudar
-  useEffect(() => {
-    filterProducts();
-  }, [products, searchTerm, selectedCategory]);
-
   const loadProducts = async () => {
     try {
       setLoading(true);
@@ -77,25 +159,19 @@ const ProductsList: React.FC = () => {
     }
   };
 
-  const filterProducts = () => {
-    let filtered = products;
-
-    // Filtro por categoria
-    if (selectedCategory) {
-      filtered = filtered.filter(product => product.category === selectedCategory);
-    }
-
-    // Filtro por busca
-    if (searchTerm) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
+  const filterProducts = useCallback(() => {
+    const filtered = products.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           product.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = !selectedCategory || product.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
     setFilteredProducts(filtered);
-  };
+  }, [products, searchTerm, selectedCategory]);
+
+  useEffect(() => {
+    filterProducts();
+  }, [filterProducts]);
 
   const handleAddToCart = (product: Product) => {
     addItem(product, 1); // Quantidade padrão: 1kg

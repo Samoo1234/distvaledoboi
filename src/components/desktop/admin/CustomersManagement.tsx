@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -90,7 +90,7 @@ const CustomersManagement: React.FC = () => {
   const { user } = useAuth();
 
   // Carregar clientes
-  const loadCustomers = async () => {
+  const loadCustomers = useCallback(async () => {
     try {
       setLoading(true);
       const data = await customerService.getAll({ activeOnly: false });
@@ -101,11 +101,11 @@ const CustomersManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [loadCustomers]);
 
   // Filtrar clientes
   const filteredCustomers = customers.filter(customer => {

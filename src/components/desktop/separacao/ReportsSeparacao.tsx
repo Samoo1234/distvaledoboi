@@ -1,45 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
   Card,
   CardContent,
   Grid,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Select,
-  MenuItem,
+  Button,
   FormControl,
   InputLabel,
-  Button,
+  Select,
+  MenuItem,
+  CircularProgress,
+  Alert,
+  Divider,
   Chip,
   LinearProgress,
-  Alert,
   List,
   ListItem,
-  ListItemText,
   ListItemIcon,
-  Divider,
-  CircularProgress
+  ListItemText
 } from '@mui/material';
 import {
   Assessment as ReportsIcon,
   TrendingUp as TrendingUpIcon,
-  Schedule as ScheduleIcon,
-  CheckCircle as CompletedIcon,
-  Warning as WarningIcon,
-  Print as PrintIcon,
+  TrendingDown as TrendingDownIcon,
   Download as DownloadIcon,
-  DateRange as DateIcon,
-  Person as PersonIcon,
+  Print as PrintIcon,
+  AttachMoney as MoneyIcon,
+  LocalShipping as ShippingIcon,
+  Schedule as ScheduleIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Group as GroupIcon,
   Inventory as InventoryIcon,
+  Timer as TimerIcon,
   Speed as SpeedIcon,
-  Assignment as TaskIcon
+  Analytics as AnalyticsIcon,
+  PieChart as PieChartIcon,
+  ShowChart as ShowChartIcon,
+  BarChart as BarChartIcon,
+  DonutLarge as DonutLargeIcon,
+  Assessment as AssessmentIcon,
+  Business as BusinessIcon,
+  CalendarToday as CalendarIcon,
+  AccessTime as AccessTimeIcon,
+  Star as StarIcon,
+  Insights as InsightsIcon,
+  TrendingFlat as TrendingFlatIcon,
+  Assignment as TaskIcon,
+  Done as CompletedIcon,
+  DateRange as DateIcon,
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../../services/orders';
 import { useNotification } from '../../shared/Notification';
@@ -54,22 +65,22 @@ const ReportsSeparacao: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar pedidos
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await OrderService.getOrders();
       setOrders(data);
     } catch (error) {
-      console.error('Erro ao carregar dados dos relatórios:', error);
-      showNotification({ message: 'Erro ao carregar relatórios', type: 'error' });
+      console.error('Erro ao carregar pedidos:', error);
+      showNotification({ message: 'Erro ao carregar pedidos', type: 'error' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
 
   // Filtrar pedidos por período
   const getFilteredOrders = () => {

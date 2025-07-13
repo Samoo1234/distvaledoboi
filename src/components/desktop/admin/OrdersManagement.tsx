@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -25,22 +25,15 @@ import {
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
-  Divider,
-  List,
-  ListItem,
-  ListItemText
+  InputLabel
 } from '@mui/material';
 import {
   Visibility as ViewIcon,
-  Edit as EditIcon,
   Cancel as CancelIcon,
   Search as SearchIcon,
   ShoppingCart as CartIcon,
   Person as PersonIcon,
-  Phone as PhoneIcon,
-  Email as EmailIcon,
-  DateRange as DateIcon
+  Phone as PhoneIcon
 } from '@mui/icons-material';
 import { OrderService, Order } from '../../../services/orders';
 import { useNotification } from '../../shared/Notification';
@@ -59,7 +52,7 @@ const OrdersManagement: React.FC = () => {
   const { showNotification } = useNotification();
 
   // Carregar pedidos
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     try {
       setLoading(true);
       const data = await OrderService.getOrders();
@@ -70,11 +63,11 @@ const OrdersManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showNotification]);
 
   useEffect(() => {
     loadOrders();
-  }, []);
+  }, [loadOrders]);
 
   // Filtrar pedidos
   const filteredOrders = orders.filter(order => {
@@ -158,7 +151,6 @@ const OrdersManagement: React.FC = () => {
   const totalOrders = orders.length;
   const pendingOrders = orders.filter(o => o.status === 'pending').length;
   const processingOrders = orders.filter(o => o.status === 'processing').length;
-  const completedOrders = orders.filter(o => o.status === 'completed').length;
   const totalValue = orders.reduce((sum, o) => sum + o.total_amount, 0);
 
   if (loading) {
